@@ -1,0 +1,16 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand-primary: var(--color-primary, #ff2a85);
+  --color-brand-secondary: var(--color-secondary, #e11d48);
+}
+
+:root {
+  --color-primary: #ff2a85;
+  --color-secondary: #e11d48;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 dark:bg-[#020617] dark:text-slate-200 transition-colors duration-200;
+}

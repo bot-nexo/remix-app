@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Scissors } from 'lucide-react';
+import { Bot } from 'lucide-react';
 
 export default function Login() {
   const { user, loading } = useAuth();
@@ -10,6 +10,28 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [empresa, setEmpresa] = useState<any>(null);
+
+  //********************* */
+  useEffect(() => {
+    traerInfoEmpresa();
+  }, []);
+
+  const traerInfoEmpresa = async () => {
+    const { data: empresa } = await supabase
+      .from("empresa")
+      .select("nombre, logo_url, color_primario, color_secundario")
+      .limit(1)
+      .maybeSingle();
+    console.log(empresa);
+    if (!empresa) {
+      setError("No se encontró información de la empresa");
+      setIsSubmitting(false);
+      return;
+    }
+    localStorage.setItem('empresa', JSON.stringify(empresa));
+    setEmpresa(empresa);
+  }
 
   if (loading) {
     return <div className="min-h-screen bg-slate-950 flex items-center justify-center" />;
@@ -35,17 +57,25 @@ export default function Login() {
     }
   };
 
+  const style = `
+  :root {
+    --brand-primary: ${empresa?.color_primario};
+    --brand-secondary: ${empresa?.color_secundario};
+  }
+  `;
+  //***************************** */
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="mx-auto h-16 w-16 bg-brand-primary rounded-full flex items-center justify-center shadow-lg shadow-brand-primary/20">
-          <Scissors className="text-white h-8 w-8" />
+        <style>{style}</style>
+        <div className={`mx-auto h-16 w-16 bg-brand-primary rounded-full flex items-center justify-center shadow-lg shadow-brand-primary/20`}>
+          <Bot className="text-white h-8 w-8" />
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-900 dark:text-white">
-          Mi Agenda App
-        </h2>
-        <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-800 dark:text-white">
           Panel de Administración
+        </h2>
+        <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-300">
+          Inicia sesión para acceder a tu cuenta
         </p>
       </div>
 
@@ -57,7 +87,7 @@ export default function Login() {
                 {error}
               </div>
             )}
-            
+
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 Correo Electrónico
@@ -100,7 +130,11 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-medium text-white bg-brand-primary hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-slate-900 disabled:opacity-50 transition-all"
+                className="w-full flex justify-center py-3 px-4 border border-transparent 
+                rounded-xl shadow-md text-sm font-medium text-white bg-brand-primary 
+                hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2
+                focus:ring-brand-primary dark:focus:ring-offset-slate-900 
+                disabled:opacity-50 transition-all"
               >
                 {isSubmitting ? 'Iniciando sesión...' : 'Ingresar al Panel'}
               </button>

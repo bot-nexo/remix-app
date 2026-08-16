@@ -7,16 +7,16 @@ import { Building2, Save, Upload } from 'lucide-react';
 export default function Empresa() {
   const { user } = useAuth();
   const { refreshCompanyData } = useTheme();
-  
+
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [nombre, setNombre] = useState('');
   const [direccion, setDireccion] = useState('');
   const [horario, setHorario] = useState('');
   const [politicas, setPoliticas] = useState('');
-  const [colorPrimario, setColorPrimario] = useState('#ff2a85');
-  const [colorSecundario, setColorSecundario] = useState('#e11d48');
+  const [colorPrimario, setColorPrimario] = useState('#0084ffff');
+  const [colorSecundario, setColorSecundario] = useState('#7c7c7cff');
   const [logoUrl, setLogoUrl] = useState('');
-  
+
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,15 +34,15 @@ export default function Empresa() {
       .select('*')
       .eq('user_id', user!.id)
       .single();
-    
+
     if (data) {
       setEmpresaId(data.id);
       setNombre(data.nombre || '');
       setDireccion(data.direccion || '');
       setHorario(data.horario || '');
       setPoliticas(data.politicas || '');
-      setColorPrimario(data.color_primario || '#ff2a85');
-      setColorSecundario(data.color_secundario || '#e11d48');
+      setColorPrimario(data.color_primario || '#0084ffff');
+      setColorSecundario(data.color_secundario || '#7c7c7cff');
       setLogoUrl(data.logo_url || '');
     }
     setLoading(false);
@@ -61,7 +61,7 @@ export default function Empresa() {
       if (file) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${user.id}/${Math.random()}.${fileExt}`;
-        
+
         const { error: uploadError, data } = await supabase.storage
           .from('empresa')
           .upload(fileName, file, { upsert: true });
@@ -71,7 +71,7 @@ export default function Empresa() {
         const { data: { publicUrl } } = supabase.storage
           .from('empresa')
           .getPublicUrl(fileName);
-          
+
         currentLogoUrl = publicUrl;
       }
 
@@ -106,7 +106,7 @@ export default function Empresa() {
       setLogoUrl(currentLogoUrl);
       setFile(null);
       refreshCompanyData(); // Update global theme
-      
+
     } catch (err: any) {
       console.error(err);
       setMessage({ text: err.message || 'Error al guardar', type: 'error' });
@@ -137,7 +137,7 @@ export default function Empresa() {
 
       <div className="bg-white dark:bg-[#0f172a] rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <form onSubmit={handleSave} className="p-6 md:p-8 space-y-8">
-          
+
           {message.text && (
             <div className={`p-4 rounded-xl text-sm border ${message.type === 'error' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:border-red-900/50 dark:text-red-400' : 'bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:border-green-900/50 dark:text-green-400'}`}>
               {message.text}
@@ -189,19 +189,19 @@ export default function Empresa() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Horario de Atención</label>
-              <input
-                type="text"
+              <textarea
+                rows={1}
                 value={horario}
                 onChange={(e) => setHorario(e.target.value)}
                 placeholder="Ej: Lunes a Sábado 9am - 7pm"
                 className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all"
               />
             </div>
-            
-            <div className="flex gap-4">
+
+            <div className="flex flex-col gap-2">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Color Primario</label>
                 <div className="flex items-center gap-2">
@@ -215,23 +215,6 @@ export default function Empresa() {
                     type="text"
                     value={colorPrimario}
                     onChange={(e) => setColorPrimario(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white text-sm"
-                  />
-                </div>
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Color Secundario</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={colorSecundario}
-                    onChange={(e) => setColorSecundario(e.target.value)}
-                    className="h-10 w-10 p-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={colorSecundario}
-                    onChange={(e) => setColorSecundario(e.target.value)}
                     className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white text-sm"
                   />
                 </div>

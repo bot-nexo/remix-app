@@ -2,6 +2,9 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
+const dataEmpresa = localStorage.getItem('empresa');
+const empresa = dataEmpresa ? JSON.parse(dataEmpresa) : null;
+
 interface ThemeContextType {
   isDarkMode: boolean;
   toggleTheme: () => void;
@@ -12,17 +15,17 @@ interface ThemeContextType {
   logoUrl: string;
 }
 
-const defaultPrimary = '#ff2a85';
-const defaultSecondary = '#e11d48';
+const defaultPrimary = empresa?.color_primario || '#2a8dffff';
+const defaultSecondary = empresa?.color_secundario || '#1d4be1ff';
 
 const ThemeContext = createContext<ThemeContextType>({
   isDarkMode: true,
-  toggleTheme: () => {},
+  toggleTheme: () => { },
   primaryColor: defaultPrimary,
   secondaryColor: defaultSecondary,
-  refreshCompanyData: async () => {},
-  companyName: 'Mi Agenda',
-  logoUrl: '',
+  refreshCompanyData: async () => { },
+  companyName: empresa?.nombre || 'Mi Agenda',
+  logoUrl: empresa?.logo_url || '',
 });
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
@@ -33,8 +36,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   });
   const [primaryColor, setPrimaryColor] = useState(defaultPrimary);
   const [secondaryColor, setSecondaryColor] = useState(defaultSecondary);
-  const [companyName, setCompanyName] = useState('Mi Agenda');
-  const [logoUrl, setLogoUrl] = useState('');
+  const [companyName, setCompanyName] = useState(empresa?.nombre || 'Mi Agenda');
+  const [logoUrl, setLogoUrl] = useState(empresa?.logo_url || '');
 
   const refreshCompanyData = async () => {
     if (!user) return;

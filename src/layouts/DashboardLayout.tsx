@@ -1,14 +1,14 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { 
-  LayoutDashboard, 
-  ShieldAlert, 
-  Tags, 
-  Building2, 
-  Settings, 
-  LogOut, 
-  Moon, 
+import {
+  LayoutDashboard,
+  ShieldAlert,
+  Tags,
+  Building2,
+  Settings,
+  LogOut,
+  Moon,
   Sun,
   Menu,
   X
@@ -22,6 +22,7 @@ export default function DashboardLayout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-slate-200">
@@ -29,7 +30,6 @@ export default function DashboardLayout() {
       </div>
     );
   }
-
   if (!user) {
     return <Navigate to="/login" replace />;
   }
@@ -94,8 +94,8 @@ export default function DashboardLayout() {
                 onClick={closeMobileMenu}
                 className={`
                   flex items-center gap-3 px-4 py-3 rounded-xl transition-colors duration-200 group
-                  ${isActive 
-                    ? 'bg-brand-primary/10 text-brand-primary font-medium dark:border dark:border-brand-primary/20' 
+                  ${isActive
+                    ? 'bg-brand-primary/10 text-brand-primary font-medium dark:border dark:border-brand-primary/20'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                   }
                 `}
@@ -138,8 +138,8 @@ export default function DashboardLayout() {
 
       {/* Mobile overlay */}
       {mobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-0 md:hidden" 
+        <div
+          className="fixed inset-0 bg-black/50 z-0 md:hidden"
           onClick={closeMobileMenu}
         />
       )}

@@ -25,11 +25,11 @@ export default function Dashboard() {
 
     const fetchDashboardData = async () => {
       setLoading(true);
-      
+
       const now = new Date();
       const todayStart = new Date(now.setHours(0, 0, 0, 0)).toISOString();
       const todayEnd = new Date(now.setHours(23, 59, 59, 999)).toISOString();
-      
+
       const weekStart = new Date();
       weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
       weekStart.setHours(0, 0, 0, 0);
@@ -70,12 +70,12 @@ export default function Dashboard() {
           .eq('user_id', user.id)
           .gte('fecha_inicio', monthStart)
           .eq('estado', 'completada');
-          
+
         const totalVentas = citasMes?.reduce((acc, cita) => {
           const servicio = Array.isArray(cita.servicios) ? cita.servicios[0] : cita.servicios;
           return acc + (Number(servicio?.valor) || 0);
         }, 0) || 0;
-        
+
         setVentasMes(totalVentas);
 
         // Próximas citas (futuras)
@@ -118,20 +118,20 @@ export default function Dashboard() {
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <MetricCard 
-          title="Citas Hoy" 
-          value={loading ? '-' : citasHoy.toString()} 
-          icon={<Calendar className="w-6 h-6 text-brand-primary" />} 
+        <MetricCard
+          title="Citas Hoy"
+          value={loading ? '-' : citasHoy.toString()}
+          icon={<Calendar className="w-6 h-6 text-brand-primary" />}
         />
-        <MetricCard 
-          title="Citas Esta Semana" 
-          value={loading ? '-' : citasSemana.toString()} 
-          icon={<Activity className="w-6 h-6 text-brand-primary" />} 
+        <MetricCard
+          title="Citas Esta Semana"
+          value={loading ? '-' : citasSemana.toString()}
+          icon={<Activity className="w-6 h-6 text-brand-primary" />}
         />
-        <MetricCard 
-          title="Ventas del Mes" 
-          value={loading ? '-' : `$${ventasMes.toLocaleString()}`} 
-          icon={<DollarSign className="w-6 h-6 text-brand-primary" />} 
+        <MetricCard
+          title="Ventas del Mes"
+          value={loading ? '-' : `$${ventasMes.toLocaleString()}`}
+          icon={<DollarSign className="w-6 h-6 text-brand-primary" />}
         />
       </div>
 
@@ -139,11 +139,11 @@ export default function Dashboard() {
       <div className="bg-white dark:bg-[#0f172a] rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
           <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Clock className="w-5 h-5 text-brand-primary" />
+            <Clock className="w-6 h-6 text-brand-primary" />
             Próximas Citas
           </h3>
         </div>
-        
+
         <div className="p-0">
           {loading ? (
             <div className="p-8 text-center text-slate-500">Cargando citas...</div>
@@ -186,7 +186,7 @@ function MetricCard({ title, value, icon }: { title: string, value: string, icon
   return (
     <div className="bg-white dark:bg-[#0f172a] p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-        {title}
+        {icon} {title}
       </p>
       <div className="flex items-baseline gap-2">
         <span className="text-3xl font-black text-slate-900 dark:text-white">{value}</span>

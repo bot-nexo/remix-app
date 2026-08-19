@@ -14,12 +14,13 @@ export default function Calendario() {
     const primaryColor = companyData?.color_primario || '#8b5cf6';
     const secondaryColor = companyData?.color_secundario || '#64748b';
 
-    const [fechaActual, setFechaActual] = useState(new Date());
-    const [loading, setLoading] = useState(false);
     const [bloqueosExistentes, setBloqueosExistentes] = useState<any[]>([]);
+    const [horariosExistentes, setHorariosExistentes] = useState<any[]>([]);
 
     // Estado del formulario modal/panel de bloqueo rápido
+    const [loading, setLoading] = useState(false);
     const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(null);
+    const [fechaActual, setFechaActual] = useState(new Date());
     const [motivo, setMotivo] = useState('');
     const [bloqueoCompleto, setBloqueoCompleto] = useState(true);
     const [horaInicio, setHoraInicio] = useState('08:00');
@@ -27,27 +28,104 @@ export default function Calendario() {
     const hoy = new Date();
     const esMesActualOAnterior = fechaActual.getFullYear() < hoy.getFullYear() ||
         (fechaActual.getFullYear() === hoy.getFullYear() && fechaActual.getMonth() <= hoy.getMonth());
+    const esPrimerDiaDelMes = new Date().getDate() === 1;
+    const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+    const semanas = [1, 2, 3, 4, 5];
 
+    //*********************************** */
     useEffect(() => {
         if (user) {
-            cargarBloqueos();
+            cargarHorarios();
         }
     }, [user, fechaActual]);
 
-    const cargarBloqueos = async () => {
+    const cargarHorarios = async () => {
+        if (!user?.id) return;
+
         setLoading(true);
-        const primerDiaMes = new Date(fechaActual.getFullYear(), fechaActual.getMonth(), 1).toISOString().split('T')[0];
-        const ultimoDiaMes = new Date(fechaActual.getFullYear(), fechaActual.getMonth() + 1, 0).toISOString().split('T')[0];
 
-        const { data } = await supabase
-            .from('bloqueos_agenda')
-            .select('*')
-            .eq('user_id', user?.id)
-            .gte('fecha', primerDiaMes)
-            .lte('fecha', ultimoDiaMes);
+        // Formato local YYYY-MM-DD para evitar desfases de zona horaria
+        const ano = fechaActual.getFullYear();
+        const mes = fechaActual.getMonth();
 
-        if (data) setBloqueosExistentes(data);
-        setLoading(false);
+        const primerDiaMes = new Date(ano, mes, 1).toISOString().split('T')[0];
+        const ultimoDiaMes = new Date(ano, mes + 1, 0).toISOString().split('T')[0];
+
+        try {
+            // Consultar ambas tablas en paralelo
+            const [resHorarios, resBloqueos] = await Promise.all([
+                supabase
+                    .from('horario_atencion') // Tabla que consume n8n
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .gte('fecha', primerDiaMes)
+                    .lte('fecha', ultimoDiaMes),
+                supabase
+                    .from('bloqueos_agenda') // Tabla de excepciones
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .gte('fecha', primerDiaMes)
+                    .lte('fecha', ultimoDiaMes)
+            ]);
+
+            if (resHorarios.error) throw resHorarios.error;
+            if (resBloqueos.error) throw resBloqueos.error;
+
+            setHorariosExistentes(resHorarios.data || []);
+            setBloqueosExistentes(resBloqueos.data || []);
+        } catch (error) {
+            console.error('Error al cargar la agenda del mes:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const generarHorarioAtencionMes = async () => {
+        if (!user?.id) return;
+        setLoading(true);
+
+        try {
+            const hoy = new Date();
+            const anoActual = hoy.getFullYear();
+            const mesActual = hoy.getMonth();
+            const ultimoDiaDelMes = new Date(anoActual, mesActual + 1, 0).getDate();
+            const diaActualNumero = hoy.getDate();
+
+            const HORA_INICIO = '09:00:00';
+            const HORA_FIN = '19:00:00';
+
+            const nuevosHorarios = [];
+
+            for (let dia = diaActualNumero; dia <= ultimoDiaDelMes; dia++) {
+                const fechaObj = new Date(anoActual, mesActual, dia);
+                const fechaStr = fechaObj.toISOString().split('T')[0];
+                const diaSemana = fechaObj.getDay(); // 0 a 6
+
+                nuevosHorarios.push({
+                    user_id: user.id,
+                    fecha: fechaStr,
+                    dia_semana: diaSemana,
+                    hora_inicio: HORA_INICIO,
+                    hora_fin: HORA_FIN,
+                    activo: true,
+                });
+            }
+
+            // Usar UPSERT con la nueva restricción 'user_id,fecha'
+            const { error } = await supabase
+                .from('horario_atencion')
+                .upsert(nuevosHorarios, { onConflict: 'user_id,fecha' });
+
+            if (error) throw error;
+
+            await cargarHorarios();
+            alert(`Se configuró el horario para ${nuevosHorarios.length} días de este mes.`);
+        } catch (err: any) {
+            console.error('Error insertando horarios:', err.message || err);
+            alert('Error al guardar el horario.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     // NAVEGACIÓN DE MESES
@@ -134,7 +212,7 @@ export default function Calendario() {
         } else {
             setDiaSeleccionado(null);
             setMotivo('');
-            cargarBloqueos();
+            cargarHorarios();
         }
         setLoading(false);
     };
@@ -142,7 +220,7 @@ export default function Calendario() {
     const eliminarBloqueo = async (id: string) => {
         setLoading(true);
         await supabase.from('bloqueos_agenda').delete().eq('id', id);
-        cargarBloqueos();
+        cargarHorarios();
     };
 
     const formatearFecha = (date: Date) => {
@@ -190,6 +268,17 @@ export default function Calendario() {
                             <ChevronRight size={20} />
                         </button>
                     </div>
+                    {/* Botón condicionado al día 1 del mes */}
+                    {esPrimerDiaDelMes && (
+                        <button
+                            onClick={generarHorarioAtencionMes}
+                            disabled={loading}
+                            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs rounded-xl shadow-md transition-all border border-emerald-400/30 disabled:opacity-50"
+                        >
+                            <Clock size={16} />
+                            <span>{loading ? 'Guardando en BD...' : 'Habilitar Mes (09:00 - 19:00)'}</span>
+                        </button>
+                    )}
                 </div>
 
                 {/* VISTA DEL MES DESGLOSADA POR SEMANAS */}
@@ -227,8 +316,8 @@ export default function Calendario() {
                                         <div
                                             key={d.fechaStr}
                                             className={`p-4 bg-slate-900 flex flex-col justify-between min-h-[120px] transition-all ${esPasado
-                                                    ? 'bg-slate-950/60 opacity-50 cursor-not-allowed'
-                                                    : 'hover:bg-slate-800/40'
+                                                ? 'bg-slate-950/60 opacity-50 cursor-not-allowed'
+                                                : 'hover:bg-slate-800/40'
                                                 } ${esHoy ? 'ring-2 ring-inset' : ''}`}
                                             style={{ borderColor: esHoy ? primaryColor : 'transparent' }}
                                         >
@@ -245,8 +334,8 @@ export default function Calendario() {
                                                 {/* ESTADO DEL DÍA */}
                                                 {bloqueo ? (
                                                     <div className={`p-2 rounded-lg space-y-1 border ${esPasado
-                                                            ? 'bg-slate-800/30 border-slate-700/30 text-slate-500'
-                                                            : 'bg-red-500/10 border-red-500/20'
+                                                        ? 'bg-slate-800/30 border-slate-700/30 text-slate-500'
+                                                        : 'bg-red-500/10 border-red-500/20'
                                                         }`}>
                                                         <div className={`flex items-center gap-1 font-semibold text-xs ${esPasado ? 'text-slate-500' : 'text-red-400'}`}>
                                                             <Lock size={12} />

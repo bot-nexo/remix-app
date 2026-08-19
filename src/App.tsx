@@ -13,6 +13,7 @@ import ListaBlanca from './pages/ListaBlanca';
 import Servicios from './pages/Servicios';
 import Empresa from './pages/Empresa';
 import Configuracion from './pages/Configuracion';
+import Calendario from './pages/Calendario';
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
               <Route path="/servicios" element={<Servicios />} />
               <Route path="/empresa" element={<Empresa />} />
               <Route path="/config" element={<Configuracion />} />
+              <Route path="/calendario" element={<Calendario />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

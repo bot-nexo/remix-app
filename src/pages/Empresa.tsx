@@ -29,11 +29,16 @@ export default function Empresa() {
 
   const fetchEmpresa = async () => {
     setLoading(true);
+    // Usamos .maybeSingle() para que no lance error si la empresa aún no existe
     const { data, error } = await supabase
       .from('empresa')
       .select('*')
       .eq('user_id', user!.id)
-      .single();
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching empresa:', error);
+    }
 
     if (data) {
       setEmpresaId(data.id);
@@ -57,12 +62,12 @@ export default function Empresa() {
     try {
       let currentLogoUrl = logoUrl;
 
-      // Handle file upload
+      // Subida de imagen
       if (file) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${user.id}/${Math.random()}.${fileExt}`;
 
-        const { error: uploadError, data } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('empresa')
           .upload(fileName, file, { upsert: true });
 
@@ -87,16 +92,25 @@ export default function Empresa() {
       };
 
       let error;
+
       if (empresaId) {
+        // UPDATE si ya existe el registro
         const { error: updateError } = await supabase
           .from('empresa')
           .update(payload)
           .eq('id', empresaId);
         error = updateError;
       } else {
-        const { error: insertError } = await supabase
+        // INSERT si es la primera vez y capturamos el id generado
+        const { data: createdData, error: insertError } = await supabase
           .from('empresa')
-          .insert(payload);
+          .insert(payload)
+          .select()
+          .single();
+
+        if (createdData) {
+          setEmpresaId(createdData.id); // <-- GUARDA EL ID CREADO PARA CONVERTIR FUTURAS GUARDADAS EN UPDATE
+        }
         error = insertError;
       }
 
@@ -105,7 +119,7 @@ export default function Empresa() {
       setMessage({ text: 'Configuración guardada exitosamente', type: 'success' });
       setLogoUrl(currentLogoUrl);
       setFile(null);
-      refreshCompanyData(); // Update global theme
+      refreshCompanyData(); // Actualiza el tema global
 
     } catch (err: any) {
       console.error(err);
@@ -161,7 +175,7 @@ export default function Empresa() {
               </div>
               <div className="text-center">
                 <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Logo de la Empresa</p>
-                <p className="text-xs text-slate-500 mt-1">Máx 3 subidas. JPG/PNG.</p>
+                <p className="text-xs text-slate-500 mt-1">JPG / PNG.</p>
               </div>
             </div>
 

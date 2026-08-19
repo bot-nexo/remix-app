@@ -11,7 +11,8 @@ import {
   Moon,
   Sun,
   Menu,
-  X
+  X,
+  Calendar
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -40,6 +41,7 @@ export default function DashboardLayout() {
     { name: 'Servicios', href: '/servicios', icon: Tags },
     { name: 'Mi Empresa', href: '/empresa', icon: Building2 },
     { name: 'Configuración', href: '/config', icon: Settings },
+    { name: 'Calendario', href: '/calendario', icon: Calendar },
   ];
 
   const closeMobileMenu = () => setMobileMenuOpen(false);

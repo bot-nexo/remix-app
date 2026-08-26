@@ -9,11 +9,12 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import ListaBlanca from './pages/ListaBlanca';
+//import ListaBlanca from './pages/ListaBlanca';
 import Servicios from './pages/Servicios';
 import Empresa from './pages/Empresa';
 import Configuracion from './pages/Configuracion';
 import Calendario from './pages/Calendario';
+import GestionCitas from './pages/GestionCitas';
 
 export default function App() {
   return (
@@ -24,7 +25,8 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route element={<DashboardLayout />}>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/lista-blanca" element={<ListaBlanca />} />
+             {/* <Route path="/lista-blanca" element={<ListaBlanca />} />*/}
+              <Route path="/gestion-citas" element={<GestionCitas />} />
               <Route path="/servicios" element={<Servicios />} />
               <Route path="/empresa" element={<Empresa />} />
               <Route path="/config" element={<Configuracion />} />

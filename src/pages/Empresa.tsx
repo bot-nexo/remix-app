@@ -237,14 +237,21 @@ export default function Empresa() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Políticas del Establecimiento</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 
+            mb-1">Políticas del Establecimiento <span className="text-xs text-slate-500 dark:text-slate-400">(Reglas de reserva, cancelaciones y uso del servicio.)</span></label>
             <textarea
-              rows={4}
+              rows={5}
               value={politicas}
               onChange={(e) => setPoliticas(e.target.value)}
               placeholder="Ej: Cancelaciones con 24h de anticipación..."
-              className="w-full px-4 py-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all resize-none"
+              className="w-full px-4 py-3 border border-slate-300 dark:border-slate-700 
+              rounded-xl bg-transparent dark:text-white focus:ring-2 
+              focus:ring-brand-primary focus:border-transparent outline-none transition-all 
+              resize-y"
             />
+            <p className="text-xs text-brand-primary dark:text-brand-primary">
+              💡 <strong>Importante:</strong> Separa cada norma con  punto y coma <strong>( ; )</strong>, y escribe precios sin puntos<strong> (ej: $4000)</strong>.
+            </p>
           </div>
 
           <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">

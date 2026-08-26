@@ -8,7 +8,7 @@ export default function Configuracion() {
   const [botActive, setBotActive] = useState(false);
   const [tolerancia, setTolerancia] = useState('15');
   const [instrucciones, setInstrucciones] = useState('');
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
@@ -24,7 +24,7 @@ export default function Configuracion() {
       .from('configuracion')
       .select('clave, valor')
       .eq('user_id', user!.id);
-    
+
     if (data) {
       data.forEach((item) => {
         if (item.clave === 'bot_activo') setBotActive(item.valor === 'true');
@@ -78,7 +78,7 @@ export default function Configuracion() {
 
       <div className="bg-white dark:bg-[#0f172a] rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <form onSubmit={handleSave} className="p-6 md:p-8 space-y-8">
-          
+
           {message.text && (
             <div className={`p-4 rounded-xl text-sm border ${message.type === 'error' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:border-red-900/50 dark:text-red-400' : 'bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:border-green-900/50 dark:text-green-400'}`}>
               {message.text}
@@ -96,9 +96,9 @@ export default function Configuracion() {
               </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
-                className="sr-only peer" 
+              <input
+                type="checkbox"
+                className="sr-only peer"
                 checked={botActive}
                 onChange={(e) => setBotActive(e.target.checked)}
               />
@@ -106,7 +106,7 @@ export default function Configuracion() {
             </label>
           </div>
 
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
               Tiempo de tolerancia para citas (minutos)
             </label>
@@ -119,9 +119,9 @@ export default function Configuracion() {
               className="w-full md:w-1/3 px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all"
             />
             <p className="text-xs text-slate-500 mt-2">Tiempo máximo que esperará el cliente antes de cancelar la cita por retraso.</p>
-          </div>
+          </div> */}
 
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
               Indicaciones Especiales para la IA
             </label>
@@ -133,7 +133,7 @@ export default function Configuracion() {
               className="w-full px-4 py-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all resize-none"
             />
             <p className="text-xs text-slate-500 mt-2">Instrucciones que el bot utilizará como contexto al conversar con los clientes.</p>
-          </div>
+          </div> */}
 
           <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
             <button

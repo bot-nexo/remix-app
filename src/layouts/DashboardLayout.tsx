@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import {
   LayoutDashboard,
-  ShieldAlert,
   Tags,
   Building2,
   Settings,
@@ -12,7 +11,9 @@ import {
   Sun,
   Menu,
   X,
-  Calendar
+  Calendar,
+  CalendarClock,
+  CalendarHeart
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -36,16 +37,18 @@ export default function DashboardLayout() {
   }
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Lista Blanca', href: '/lista-blanca', icon: ShieldAlert },
-    { name: 'Servicios', href: '/servicios', icon: Tags },
-    { name: 'Mi Empresa', href: '/empresa', icon: Building2 },
+    { name: 'Calendario', href: '/calendario', icon: CalendarHeart },
     { name: 'Configuración', href: '/config', icon: Settings },
-    { name: 'Calendario', href: '/calendario', icon: Calendar },
+    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Empresa', href: '/empresa', icon: Building2 },
+    { name: 'Gest. Citas', href: '/gestion-citas', icon: CalendarClock },
+    //{ name: 'Lista Blanca', href: '/lista-blanca', icon: ShieldAlert },
+    { name: 'Servicios', href: '/servicios', icon: Tags },
   ];
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
+  //*************************
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col md:flex-row">
       {/* Mobile Header */}

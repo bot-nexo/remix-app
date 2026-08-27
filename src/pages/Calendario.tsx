@@ -2,16 +2,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Lock, Unlock, Clock, AlertCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Lock, Unlock, Clock, AlertCircle, CheckCircle2, XCircle, X } from 'lucide-react';
 
 const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
+interface Toast {
+    id: number;
+    tipo: 'success' | 'error' | 'warning';
+    mensaje: string;
+}
+
 export default function Calendario() {
     const { user } = useAuth();
-    const { companyData } = useTheme();
-
-    const primaryColor = companyData?.color_primario || '#8b5cf6';
-    const secondaryColor = companyData?.color_secundario || '#64748b';
+    const { primaryColor, secondaryColor } = useTheme();
 
     const [bloqueosExistentes, setBloqueosExistentes] = useState<any[]>([]);
     const [horariosExistentes, setHorariosExistentes] = useState<any[]>([]);
@@ -35,6 +38,22 @@ export default function Calendario() {
 
     // Candado para no avanzar más allá de Diciembre del año en curso
     const esUltimoMesDelAno = fechaActual.getFullYear() >= anoEnCurso && fechaActual.getMonth() === 11;
+
+    const [toasts, setToasts] = useState<Toast[]>([]);
+
+    //**************************************** */
+    // Sistema de Notificaciones Toast
+    const showToast = (mensaje: string, tipo: 'success' | 'error' | 'warning' = 'success') => {
+        const id = Date.now();
+        setToasts((prev) => [...prev, { id, tipo, mensaje }]);
+        setTimeout(() => {
+            removeToast(id);
+        }, 4000);
+    };
+
+    const removeToast = (id: number) => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+    };
 
     // Cargar horarios del mes activo
     useEffect(() => {
@@ -69,13 +88,14 @@ export default function Calendario() {
                     .lte('fecha', ultimoDiaMes)
             ]);
 
-            if (resHorarios.error) throw resHorarios.error;
-            if (resBloqueos.error) throw resBloqueos.error;
+            if (resHorarios.error) showToast(resHorarios.error.message, 'error');
+            if (resBloqueos.error) showToast(resBloqueos.error.message, 'error');
 
             setHorariosExistentes(resHorarios.data || []);
             setBloqueosExistentes(resBloqueos.data || []);
         } catch (error) {
             console.error('Error al cargar la agenda:', error);
+            showToast('Error al cargar la agenda', 'error');
         } finally {
             setLoading(false);
         }
@@ -92,7 +112,7 @@ export default function Calendario() {
 
         // Protección extra: Evitar habilitar años futuros
         if (fechaActual.getFullYear() > anoEnCurso) {
-            alert('Solo se permite configurar horarios hasta diciembre del año en curso.');
+            showToast('Solo se permite configurar horarios hasta diciembre del año en curso.', 'warning');
             return;
         }
 
@@ -132,12 +152,12 @@ export default function Calendario() {
                 .from('horario_atencion')
                 .upsert(nuevosHorarios, { onConflict: 'user_id,fecha' });
 
-            if (error) throw error;
-
+            if (error) showToast(error.message, 'error');
             await cargarAgendaMes();
+            showToast('Horario del mes habilitado correctamente.', 'success');
         } catch (err: any) {
             console.error('Error insertando horarios:', err);
-            alert('Error al habilitar el mes.');
+            showToast('Error al habilitar el mes.', 'error');
         } finally {
             setLoading(false);
         }
@@ -222,8 +242,9 @@ export default function Calendario() {
         const { error } = await supabase.from('bloqueos_agenda').insert([payload]);
 
         if (error) {
-            alert('Error al bloquear día: ' + error.message);
+            showToast(error.message, 'error');
         } else {
+            showToast('Día bloqueado correctamente.', 'success');
             setDiaSeleccionado(null);
             setMotivo('');
             cargarAgendaMes();
@@ -233,7 +254,9 @@ export default function Calendario() {
 
     const eliminarBloqueo = async (id: string) => {
         setLoading(true);
-        await supabase.from('bloqueos_agenda').delete().eq('id', id);
+        const { error } = await supabase.from('bloqueos_agenda').delete().eq('id', id);
+        if (error) showToast(error.message, 'error');
+        showToast('Día desbloqueado correctamente.', 'success');
         cargarAgendaMes();
     };
 
@@ -243,9 +266,39 @@ export default function Calendario() {
 
     const nombreMesAno = fechaActual.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
 
+    //*********************************** */
     return (
         <>
             <div className="w-full max-w-5xl mx-auto space-y-6 text-slate-100">
+                {/* Container de Toasts */}
+                <div className="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+                    {toasts.map((t) => (
+                        <div
+                            key={t.id}
+                            className={`pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-top-4 ${t.tipo === 'success'
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
+                                : t.tipo === 'error'
+                                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-900 dark:text-rose-200'
+                                    : 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
+                                }`}
+                        >
+                            {t.tipo === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />}
+                            {t.tipo === 'error' && <XCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />}
+                            {t.tipo === 'warning' && <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />}
+
+                            <div className="flex-1 text-xs font-semibold leading-relaxed">
+                                {t.mensaje}
+                            </div>
+
+                            <button
+                                onClick={() => removeToast(t.id)}
+                                className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
 
                 {/* CABECERA Y NAVEGACIÓN */}
                 <div
@@ -344,8 +397,8 @@ export default function Calendario() {
                                         <div
                                             key={d.fechaStr}
                                             className={`p-4 bg-slate-900 flex flex-col justify-between min-h-[120px] transition-all ${esPasado
-                                                    ? 'bg-slate-950/60 opacity-50 cursor-not-allowed'
-                                                    : 'hover:bg-slate-800/40'
+                                                ? 'bg-slate-950/60 opacity-50 cursor-not-allowed'
+                                                : 'hover:bg-slate-800/40'
                                                 } ${esHoy ? 'ring-2 ring-inset' : ''}`}
                                             style={{ borderColor: esHoy ? primaryColor : 'transparent' }}
                                         >
@@ -362,8 +415,8 @@ export default function Calendario() {
                                                 {/* ESTADO DEL DÍA */}
                                                 {bloqueo ? (
                                                     <div className={`p-2 rounded-lg space-y-1 border ${esPasado
-                                                            ? 'bg-slate-800/30 border-slate-700/30 text-slate-500'
-                                                            : 'bg-red-500/10 border-red-500/20'
+                                                        ? 'bg-slate-800/30 border-slate-700/30 text-slate-500'
+                                                        : 'bg-red-500/10 border-red-500/20'
                                                         }`}>
                                                         <div className={`flex items-center gap-1 font-semibold text-xs ${esPasado ? 'text-slate-500' : 'text-red-400'}`}>
                                                             <Lock size={12} />

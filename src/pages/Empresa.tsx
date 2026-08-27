@@ -2,7 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Building2, Save, Upload } from 'lucide-react';
+import { AlertCircle, Building2, CheckCircle2, Save, Upload, X, XCircle } from 'lucide-react';
+
+interface Toast {
+  id: number;
+  tipo: 'success' | 'error' | 'warning';
+  mensaje: string;
+};
 
 export default function Empresa() {
   const { user } = useAuth();
@@ -21,6 +27,21 @@ export default function Empresa() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  //************************************* */
+  // Sistema de Notificaciones Toast
+  const showToast = (mensaje: string, tipo: 'success' | 'error' | 'warning' = 'success') => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, tipo, mensaje }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  const removeToast = (id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -38,6 +59,7 @@ export default function Empresa() {
 
     if (error) {
       console.error('Error fetching empresa:', error);
+      showToast(error.message || 'Error al cargar empresa', 'error');
     }
 
     if (data) {
@@ -57,7 +79,6 @@ export default function Empresa() {
     e.preventDefault();
     if (!user) return;
     setSaving(true);
-    setMessage({ text: '', type: '' });
 
     try {
       let currentLogoUrl = logoUrl;
@@ -71,7 +92,12 @@ export default function Empresa() {
           .from('empresa')
           .upload(fileName, file, { upsert: true });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Error al subir imagen:', uploadError);
+          showToast(uploadError.message || 'Error al subir imagen', 'error');
+          return;
+        }
+
 
         const { data: { publicUrl } } = supabase.storage
           .from('empresa')
@@ -109,21 +135,21 @@ export default function Empresa() {
           .single();
 
         if (createdData) {
-          setEmpresaId(createdData.id); // <-- GUARDA EL ID CREADO PARA CONVERTIR FUTURAS GUARDADAS EN UPDATE
+          setEmpresaId(createdData.id);
         }
         error = insertError;
       }
 
       if (error) throw error;
 
-      setMessage({ text: 'Configuración guardada exitosamente', type: 'success' });
+      showToast('Configuración de empresa guardada exitosamente', 'success');
       setLogoUrl(currentLogoUrl);
       setFile(null);
-      refreshCompanyData(); // Actualiza el tema global
+      refreshCompanyData();
 
     } catch (err: any) {
       console.error(err);
-      setMessage({ text: err.message || 'Error al guardar', type: 'error' });
+      showToast(err.message || 'Error al guardar configuración de empresa', 'error');
     } finally {
       setSaving(false);
     }
@@ -137,8 +163,39 @@ export default function Empresa() {
 
   if (loading) return <div className="text-slate-500">Cargando datos...</div>;
 
+  //************************************* */
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
+      <div className="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-top-4 ${t.tipo === 'success'
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
+              : t.tipo === 'error'
+                ? 'bg-rose-500/10 border-rose-500/30 text-rose-900 dark:text-rose-200'
+                : 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
+              }`}
+          >
+            {t.tipo === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />}
+            {t.tipo === 'error' && <XCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />}
+            {t.tipo === 'warning' && <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />}
+
+            <div className="flex-1 text-xs font-semibold leading-relaxed">
+              {t.mensaje}
+            </div>
+
+            <button
+              onClick={() => removeToast(t.id)}
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/********************Formulario********************* */}
       <div>
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
           <Building2 className="w-8 h-8 text-brand-primary" />
@@ -151,13 +208,6 @@ export default function Empresa() {
 
       <div className="bg-white dark:bg-[#0f172a] rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <form onSubmit={handleSave} className="p-6 md:p-8 space-y-8">
-
-          {message.text && (
-            <div className={`p-4 rounded-xl text-sm border ${message.type === 'error' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:border-red-900/50 dark:text-red-400' : 'bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:border-green-900/50 dark:text-green-400'}`}>
-              {message.text}
-            </div>
-          )}
-
           <div className="flex flex-col md:flex-row gap-8 items-start">
             <div className="w-full md:w-1/3 flex flex-col items-center gap-4">
               <div className="relative w-32 h-32 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-700 overflow-hidden group flex items-center justify-center bg-slate-50 dark:bg-slate-800">
@@ -250,7 +300,7 @@ export default function Empresa() {
               resize-y"
             />
             <p className="text-xs text-brand-primary dark:text-brand-primary">
-              💡 <strong>Importante:</strong> Separa cada norma con  punto y coma <strong>( ; )</strong>, y escribe precios sin puntos<strong> (ej: $4000)</strong>.
+              💡 <strong>Importante:</strong> Separa cada norma con  punto y coma <strong>( ; )</strong>, y escribe precios sin puntos ni comas<strong> (ej: $4000)</strong>.
             </p>
           </div>
 

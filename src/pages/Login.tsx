@@ -136,7 +136,7 @@ export default function Login() {
                 focus:ring-brand-primary dark:focus:ring-offset-slate-900 
                 disabled:opacity-50 transition-all"
               >
-                {isSubmitting ? 'Iniciando sesión...' : 'Ingresar al Panel'}
+                {isSubmitting ? 'Iniciando sesión...' : 'Ingresar'}
               </button>
             </div>
           </form>

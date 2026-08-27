@@ -5,7 +5,7 @@
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
+// import { ThemeProvider } from './contexts/ThemeContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -19,23 +19,23 @@ import GestionCitas from './pages/GestionCitas';
 export default function App() {
   return (
     <AuthProvider>
-      <ThemeProvider>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route element={<DashboardLayout />}>
-              <Route path="/" element={<Dashboard />} />
-             {/* <Route path="/lista-blanca" element={<ListaBlanca />} />*/}
-              <Route path="/gestion-citas" element={<GestionCitas />} />
-              <Route path="/servicios" element={<Servicios />} />
-              <Route path="/empresa" element={<Empresa />} />
-              <Route path="/config" element={<Configuracion />} />
-              <Route path="/calendario" element={<Calendario />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
-      </ThemeProvider>
+      {/* <ThemeProvider> */}
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route element={<DashboardLayout />}>
+            <Route path="/" element={<Dashboard />} />
+            {/* <Route path="/lista-blanca" element={<ListaBlanca />} />*/}
+            <Route path="/gestion-citas" element={<GestionCitas />} />
+            <Route path="/servicios" element={<Servicios />} />
+            <Route path="/empresa" element={<Empresa />} />
+            <Route path="/config" element={<Configuracion />} />
+            <Route path="/calendario" element={<Calendario />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+      {/* </ThemeProvider> */}
     </AuthProvider>
   );
 }

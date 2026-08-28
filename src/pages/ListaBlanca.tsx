@@ -2,46 +2,49 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { ShieldAlert, Trash2, Plus } from 'lucide-react';
-
-interface Contacto {
-  id: string;
-  nombre_contacto: string;
-  numero_whatsapp: string;
-}
+import { Contacto } from '../types/types';
+import {useToast} from '../contexts/ToastContext';
 
 export default function ListaBlanca() {
   const { user } = useAuth();
+  const {showToast} = useToast();
   const [contactos, setContactos] = useState<Contacto[]>([]);
   const [nombre, setNombre] = useState('');
   const [numero, setNumero] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  //******************************** */
   useEffect(() => {
     if (!user) return;
     fetchContactos();
   }, [user]);
 
   const fetchContactos = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('lista_blanca')
-      .select('*')
-      .eq('user_id', user!.id)
-      .order('created_at', { ascending: false });
-    
-    if (data) setContactos(data);
-    if (error) console.error(error);
-    setLoading(false);
+ try {
+     setLoading(true);
+     const { data, error } = await supabase
+       .from('lista_blanca')
+       .select('*')
+       .eq('user_id', user!.id)
+       .order('created_at', { ascending: false });
+     
+     if (data) setContactos(data);
+ } catch (error) {
+  showToast('Error al cargar contactos', 'error');
+ }finally{
+  setLoading(false);
+ }
   };
 
   const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !nombre || !numero) return;
-    setSubmitting(true);
+ try {
+     e.preventDefault();
+     if (!user || !nombre || !numero) return;
+     setSubmitting(true);
 
-    const { error } = await supabase
-      .from('lista_blanca')
+     const { error } = await supabase
+       .from('lista_blanca')
       .insert({
         user_id: user.id,
         nombre_contacto: nombre,
@@ -53,15 +56,19 @@ export default function ListaBlanca() {
       setNumero('');
       fetchContactos();
     } else {
-      alert(error.message);
+      showToast('Error al agregar contacto', 'error');
     }
     setSubmitting(false);
+  } catch (error) {
+    showToast('Error al agregar contacto', 'error');
+  }
   };
 
   const handleDelete = async (id: string) => {
     if (!user) return;
     if (!window.confirm('¿Eliminar este contacto?')) return;
     
+    try {
     const { error } = await supabase
       .from('lista_blanca')
       .delete()
@@ -71,8 +78,12 @@ export default function ListaBlanca() {
     if (!error) {
       setContactos(contactos.filter(c => c.id !== id));
     }
+  } catch (error) {
+    showToast('Error al eliminar contacto', 'error');
+  }
   };
 
+  //******************************** */
   return (
     <div className="space-y-8">
       <div>

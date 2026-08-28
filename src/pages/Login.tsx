@@ -3,8 +3,10 @@ import { supabase } from '../lib/supabase';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Bot } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 export default function Login() {
+  const { showToast } = useToast();
   const { user, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,20 +20,25 @@ export default function Login() {
   }, []);
 
   const traerInfoEmpresa = async () => {
-    const { data: empresa } = await supabase
-      .from("empresa")
-      .select("nombre, logo_url, color_primario, color_secundario")
-      .limit(1)
-      .maybeSingle();
-    console.log(empresa);
-    if (!empresa) {
-      setError("No se encontró información de la empresa");
-      setIsSubmitting(false);
-      return;
-    }
-    localStorage.setItem('empresa', JSON.stringify(empresa));
-    setEmpresa(empresa);
-  }
+   try {
+     const { data: empresa } = await supabase
+       .from("empresa")
+       .select("nombre, logo_url, color_primario, color_secundario")
+       .limit(1)
+       .maybeSingle();
+     console.log(empresa);
+     if (!empresa) {
+       showToast('No se encontró información de la empresa', 'error');
+       setIsSubmitting(false);
+       return;
+     }
+     localStorage.setItem('empresa', JSON.stringify(empresa));
+     setEmpresa(empresa);
+   } catch (error) {
+    showToast('Error al cargar información de la empresa', 'error');
+    
+   }
+  };
 
   if (loading) {
     return <div className="min-h-screen bg-slate-950 flex items-center justify-center" />;
@@ -42,19 +49,24 @@ export default function Login() {
   }
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      setError(error.message);
-      setIsSubmitting(false);
-    }
+try {
+      e.preventDefault();
+      setIsSubmitting(true);
+      setError(null);
+  
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+  
+      if (error) {
+        setError(error.message);
+        setIsSubmitting(false);
+      }
+} catch (error) {
+  showToast('Error al iniciar sesión', 'error');
+  setIsSubmitting(false);
+}
   };
 
   const style = `

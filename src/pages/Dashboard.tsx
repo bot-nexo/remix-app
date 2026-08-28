@@ -1,24 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { CitaResumen, ServicioPopular } from '../types/types';
 import {
   Calendar, DollarSign, Activity, TrendingUp, Target, EyeOff, Eye,
   UserCheck, Award, Clock, ArrowUpRight, ArrowDownRight, Users, UserPlus, AlertTriangle
 } from 'lucide-react';
 
-interface CitaResumen {
-  id: string;
-  cliente_nombre: string;
-  hora_inicio: string;
-  estado: string;
-  servicios: { nombre: string } | null;
-}
-
-interface ServicioPopular {
-  nombre: string;
-  total: number;
-  porcentaje: number;
-}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -47,147 +35,6 @@ export default function Dashboard() {
   const META_VENTAS_MES = 5000000;
 
   //****************** */
-  // const fetchDashboardData = async () => {
-  //   if (!user) return;
-  //   setLoading(true);
-
-  //   const now = new Date();
-  //   const hoyLocal = now.toLocaleDateString('en-CA');
-
-  //   const weekStart = new Date();
-  //   weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
-  //   const weekEnd = new Date(weekStart);
-  //   weekEnd.setDate(weekStart.getDate() + 6);
-  //   const weekStartStr = weekStart.toLocaleDateString('en-CA');
-  //   const weekEndStr = weekEnd.toLocaleDateString('en-CA');
-
-  //   const monthStartStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-
-  //   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  //   const lastMonthStartStr = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}-01`;
-  //   const lastMonthEndStr = new Date(now.getFullYear(), now.getMonth(), 0).toLocaleDateString('en-CA');
-
-  //   try {
-  //     // 1. Citas Hoy
-  //     const { count: hoyCount } = await supabase
-  //       .from('citas')
-  //       .select('*', { count: 'exact', head: true })
-  //       .eq('user_id', user.id)
-  //       .eq('fecha_inicio', hoyLocal);
-
-  //     setCitasHoy(hoyCount || 0);
-
-  //     // 2. Citas Semana
-  //     const { count: semanaCount } = await supabase
-  //       .from('citas')
-  //       .select('*', { count: 'exact', head: true })
-  //       .eq('user_id', user.id)
-  //       .gte('fecha_inicio', weekStartStr)
-  //       .lte('fecha_inicio', weekEndStr);
-
-  //     setCitasSemana(semanaCount || 0);
-
-  //     // 3. Ventas Mes Actual y Análisis de Citas
-  //     const { data: citasMes } = await supabase
-  //       .from('citas')
-  //       .select(`
-  //         cliente_numero,
-  //         estado,
-  //         servicios ( nombre, valor )
-  //       `)
-  //       .eq('user_id', user.id)
-  //       .gte('fecha_inicio', monthStartStr);
-
-  //     const completadas = citasMes?.filter(c => c.estado === 'COMPLETADA') || [];
-  //     const canceladas = citasMes?.filter(c => c.estado === 'CANCELADO_INASISTENCIA') || [];
-
-  //     setInasistenciasMes(canceladas.length);
-
-  //     const totalVentasActual = completadas.reduce((acc, cita) => {
-  //       const servicio = Array.isArray(cita.servicios) ? cita.servicios[0] : cita.servicios;
-  //       return acc + (Number(servicio?.valor) || 0);
-  //     }, 0);
-
-  //     setVentasMes(totalVentasActual);
-
-  //     // Ticket Promedio
-  //     setTicketPromedio(completadas.length > 0 ? Math.round(totalVentasActual / completadas.length) : 0);
-
-  //     // Tasa Asistencia
-  //     const totalEvaluadas = completadas.length + canceladas.length;
-  //     setTasaAsistencia(totalEvaluadas > 0 ? Math.round((completadas.length / totalEvaluadas) * 100) : 100);
-
-  //     // Clientes Únicos del Mes
-  //     const numerosUnicos = new Set(citasMes?.map(c => c.cliente_numero).filter(Boolean));
-  //     setClientesNuevos(numerosUnicos.size);
-
-  //     // Porcentaje Cumplimiento Meta
-  //     setPorcentajeCumplimiento(Math.min(Math.round((totalVentasActual / META_VENTAS_MES) * 100), 100));
-
-  //     // 4. Crecimiento vs Mes Anterior
-  //     const { data: citasMesAnterior } = await supabase
-  //       .from('citas')
-  //       .select(`servicios ( valor )`)
-  //       .eq('user_id', user.id)
-  //       .gte('fecha_inicio', lastMonthStartStr)
-  //       .lte('fecha_inicio', lastMonthEndStr)
-  //       .eq('estado', 'COMPLETADA');
-
-  //     const totalVentasAnterior = citasMesAnterior?.reduce((acc, cita) => {
-  //       const servicio = Array.isArray(cita.servicios) ? cita.servicios[0] : cita.servicios;
-  //       return acc + (Number(servicio?.valor) || 0);
-  //     }, 0) || 0;
-
-  //     if (totalVentasAnterior > 0) {
-  //       setCrecimiento(Math.round(((totalVentasActual - totalVentasAnterior) / totalVentasAnterior) * 100));
-  //     } else {
-  //       setCrecimiento(totalVentasActual > 0 ? 100 : 0);
-  //     }
-
-  //     // 5. Agenda Hoy (Próximas 4)
-  //     const { data: hoyList } = await supabase
-  //       .from('citas')
-  //       .select(`
-  //         id,
-  //         cliente_nombre,
-  //         hora_inicio,
-  //         estado,
-  //         servicios ( nombre )
-  //       `)
-  //       .eq('user_id', user.id)
-  //       .eq('fecha_inicio', hoyLocal)
-  //       .order('hora_inicio', { ascending: true })
-  //       .limit(4);
-
-  //     setProximasHoy((hoyList as any) || []);
-
-  //     // 6. Servicios Populares
-  //     const mapaServicios: Record<string, number> = {};
-  //     (citasMes as any[])?.forEach((c) => {
-  //       const servicio = Array.isArray(c.servicios) ? c.servicios[0] : c.servicios;
-  //       const sNombre = servicio?.nombre || 'Otros';
-  //       mapaServicios[sNombre] = (mapaServicios[sNombre] || 0) + 1;
-  //     });
-
-  //     const totalServicios = Object.values(mapaServicios).reduce((a, b) => a + b, 0) || 1;
-  //     const topServicios = Object.entries(mapaServicios)
-  //       .map(([nombre, total]) => ({
-  //         nombre,
-  //         total,
-  //         porcentaje: Math.round((total / totalServicios) * 100)
-  //       }))
-  //       .sort((a, b) => b.total - a.total)
-  //       .slice(0, 4);
-
-  //     setServiciosTop(topServicios);
-
-  //   } catch (error) {
-  //     console.error("Error cargando dashboard:", error);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const fetchDashboardData = async () => {
     if (!user) return;
     setLoading(true);

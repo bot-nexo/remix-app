@@ -2,33 +2,16 @@ import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Calendar, Clock, UserCheck, CheckCircle2, XCircle, AlertCircle, X } from 'lucide-react';
+import { Cita, FiltroRango, Toast } from '../types/types';
+import { useToast } from '../contexts/ToastContext';
 
-interface Toast {
-    id: number;
-    tipo: 'success' | 'error' | 'warning';
-    mensaje: string;
-}
-
-
-interface Cita {
-    id: string;
-    cliente_nombre: string;
-    cliente_numero: string;
-    fecha_inicio: string;
-    hora_inicio: string;
-    hora_fin: string;
-    estado: string;
-    servicios: { nombre: string; valor?: number } | null;
-}
-
-type FiltroRango = 'hoy' | 'semana' | 'mes' | 'todas';
 
 export default function GestionCitas() {
+    const { showToast } = useToast();
     const { user } = useAuth();
     const [citas, setCitas] = useState<Cita[]>([]);
     const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
-    const [toasts, setToasts] = useState<Toast[]>([]);
     // Filtro activo y paginación
     const [filtroRango, setFiltroRango] = useState<FiltroRango>('todas');
     const [paginaActual, setPaginaActual] = useState(1);
@@ -36,19 +19,6 @@ export default function GestionCitas() {
 
 
     //************************************** */
-    // Sistema de Notificaciones Toast
-    const showToast = (mensaje: string, tipo: 'success' | 'error' | 'warning' = 'success') => {
-        const id = Date.now();
-        setToasts((prev) => [...prev, { id, tipo, mensaje }]);
-        setTimeout(() => {
-            setToasts((prev) => prev.filter((t) => t.id !== id));
-        }, 4000);
-    };
-
-    const removeToast = (id: number) => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-    };
-
     const fetchCitas = async () => {
         if (!user) return;
         setLoading(true);
@@ -144,36 +114,6 @@ export default function GestionCitas() {
     //*********************************** */
     return (
         <div className="space-y-6">
-            {/* Container de Toasts */}
-            <div className="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
-                {toasts.map((t) => (
-                    <div
-                        key={t.id}
-                        className={`pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-top-4 ${t.tipo === 'success'
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
-                            : t.tipo === 'error'
-                                ? 'bg-rose-500/10 border-rose-500/30 text-rose-900 dark:text-rose-200'
-                                : 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
-                            }`}
-                    >
-                        {t.tipo === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />}
-                        {t.tipo === 'error' && <XCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />}
-                        {t.tipo === 'warning' && <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />}
-
-                        <div className="flex-1 text-xs font-semibold leading-relaxed">
-                            {t.mensaje}
-                        </div>
-
-                        <button
-                            onClick={() => removeToast(t.id)}
-                            className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    </div>
-                ))}
-            </div>
-
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Gestión de Citas</h1>

@@ -15,26 +15,31 @@ import Empresa from './pages/Empresa';
 import Configuracion from './pages/Configuracion';
 import Calendario from './pages/Calendario';
 import GestionCitas from './pages/GestionCitas';
+import BookingPage from './pages/BookingPage';
+import { ToastProvider } from './contexts/ToastContext';
 
 export default function App() {
   return (
     <AuthProvider>
       {/* <ThemeProvider> */}
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route element={<DashboardLayout />}>
-            <Route path="/" element={<Dashboard />} />
-            {/* <Route path="/lista-blanca" element={<ListaBlanca />} />*/}
-            <Route path="/gestion-citas" element={<GestionCitas />} />
-            <Route path="/servicios" element={<Servicios />} />
-            <Route path="/empresa" element={<Empresa />} />
-            <Route path="/config" element={<Configuracion />} />
-            <Route path="/calendario" element={<Calendario />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+      <ToastProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/reservar" element={<BookingPage />} />
+            <Route element={<DashboardLayout />}>
+              <Route path="/" element={<Dashboard />} />
+              {/* <Route path="/lista-blanca" element={<ListaBlanca />} />*/}
+              <Route path="/gestion-citas" element={<GestionCitas />} />
+              <Route path="/servicios" element={<Servicios />} />
+              <Route path="/empresa" element={<Empresa />} />
+              <Route path="/config" element={<Configuracion />} />
+              <Route path="/calendario" element={<Calendario />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </ToastProvider>
       {/* </ThemeProvider> */}
     </AuthProvider>
   );

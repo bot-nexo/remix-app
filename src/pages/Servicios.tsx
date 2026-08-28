@@ -1,37 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import ConfirmModal from '../components/ConfirmModal';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import { Servicio } from '../types/types';
+import ConfirmModal from '../components/ConfirmModal';
 import {
   Tags,
   Trash2,
   Plus,
   Edit3,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  X,
   Power,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
 
-interface Servicio {
-  id: string;
-  nombre: string;
-  valor: number;
-  duracion_minutos: number;
-  activo: boolean;
-}
-
-interface Toast {
-  id: number;
-  tipo: 'success' | 'error' | 'warning';
-  mensaje: string;
-}
-
 export default function Servicios() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [servicios, setServicios] = useState<Servicio[]>([]);
 
   // Campos formulario
@@ -47,43 +32,34 @@ export default function Servicios() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
 
   // Paginación
   const [paginaActual, setPaginaActual] = useState(1);
   const elementosPorPagina = 5;
 
-  // Sistema de Notificaciones Toast
-  const showToast = (mensaje: string, tipo: 'success' | 'error' | 'warning' = 'success') => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, tipo, mensaje }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  };
-
-  const removeToast = (id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
-
+  //******************************** */
   useEffect(() => {
     if (!user) return;
     fetchServicios();
   }, [user]);
 
   const fetchServicios = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('servicios')
-      .select('*')
-      .eq('user_id', user!.id)
-      .order('created_at', { ascending: false });
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('servicios')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false });
 
-    if (data) {
-      setServicios(data.map(s => ({ ...s, activo: s.activo ?? true })));
+      if (data) {
+        setServicios(data.map(s => ({ ...s, activo: s.activo ?? true })));
+      }
+    } catch (error) {
+      showToast('Error al cargar servicios', 'error');
+    } finally {
+      setLoading(false);
     }
-    if (error) console.error(error);
-    setLoading(false);
   };
 
   const resetForm = () => {
@@ -95,60 +71,68 @@ export default function Servicios() {
 
   // Guardar o Editar Servicio
   const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !nombre.trim() || !valor || !duracion) return;
-
-    const nombreLimpio = nombre.trim();
-
-    const esDuplicado = servicios.some(
-      (s) => s.nombre.toLowerCase() === nombreLimpio.toLowerCase() && s.id !== editingId
-    );
-
-    if (esDuplicado) {
-      showToast(`El servicio "${nombreLimpio}" ya se encuentra registrado.`, 'warning');
-      return;
-    }
-
-    setSubmitting(true);
-
-    if (editingId) {
-      const { error } = await supabase
-        .from('servicios')
-        .update({
-          nombre: nombreLimpio,
-          valor: parseFloat(valor),
-          duracion_minutos: parseInt(duracion, 10),
-        })
-        .eq('id', editingId);
-
-      if (!error) {
-        showToast('Servicio actualizado correctamente.', 'success');
-        resetForm();
-        fetchServicios();
-      } else {
-        showToast(error.message, 'error');
+    try {
+      e.preventDefault();
+      if (!user || !nombre.trim() || !valor || !duracion) {
+        showToast('Todos los campos son obligatorios', 'error');
+        return;
       }
-    } else {
-      const { error } = await supabase
-        .from('servicios')
-        .insert({
-          user_id: user.id,
-          nombre: nombreLimpio,
-          valor: parseFloat(valor),
-          duracion_minutos: parseInt(duracion, 10),
-          activo: true
-        });
 
-      if (!error) {
-        showToast('Servicio registrado con éxito.', 'success');
-        resetForm();
-        fetchServicios();
-      } else {
-        showToast(error.message, 'error');
+      const nombreLimpio = nombre.trim();
+
+      const esDuplicado = servicios.some(
+        (s) => s.nombre.toLowerCase() === nombreLimpio.toLowerCase() && s.id !== editingId
+      );
+
+      if (esDuplicado) {
+        showToast(`El servicio "${nombreLimpio}" ya se encuentra registrado.`, 'warning');
+        return;
       }
-    }
 
-    setSubmitting(false);
+      setSubmitting(true);
+
+      if (editingId) {
+        const { error } = await supabase
+          .from('servicios')
+          .update({
+            nombre: nombreLimpio,
+            valor: parseFloat(valor),
+            duracion_minutos: parseInt(duracion, 10),
+          })
+          .eq('id', editingId);
+
+        if (!error) {
+          showToast('Servicio actualizado correctamente.', 'success');
+          resetForm();
+          fetchServicios();
+        } else {
+          showToast(error.message, 'error');
+        }
+      } else {
+        const { error } = await supabase
+          .from('servicios')
+          .insert({
+            user_id: user.id,
+            nombre: nombreLimpio,
+            valor: parseFloat(valor),
+            duracion_minutos: parseInt(duracion, 10),
+            activo: true
+          });
+
+        if (!error) {
+          showToast('Servicio registrado con éxito.', 'success');
+          resetForm();
+          fetchServicios();
+        } else {
+          showToast(error.message, 'error');
+        }
+      }
+
+    } catch (error) {
+      showToast('Error al guardar servicio', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleStartEdit = (servicio: Servicio) => {
@@ -160,58 +144,69 @@ export default function Servicios() {
   };
 
   const handleToggleActivo = async (servicio: Servicio) => {
-    const nuevoEstado = !servicio.activo;
+    try {
+      setLoading(true);
+      const nuevoEstado = !servicio.activo;
 
-    setServicios((prev) =>
-      prev.map((s) => (s.id === servicio.id ? { ...s, activo: nuevoEstado } : s))
-    );
-
-    const { error } = await supabase
-      .from('servicios')
-      .update({ activo: nuevoEstado })
-      .eq('id', servicio.id);
-
-    if (error) {
-      showToast('Error al actualizar el estado.', 'error');
-      fetchServicios();
-    } else {
-      showToast(
-        `Servicio ${nuevoEstado ? 'activado' : 'desactivado'} correctamente.`,
-        'success'
+      setServicios((prev) =>
+        prev.map((s) => (s.id === servicio.id ? { ...s, activo: nuevoEstado } : s))
       );
+
+      const { error } = await supabase
+        .from('servicios')
+        .update({ activo: nuevoEstado })
+        .eq('id', servicio.id);
+
+      if (error) {
+        showToast('Error al actualizar el estado.', 'error');
+        fetchServicios();
+      } else {
+        showToast(
+          `Servicio ${nuevoEstado ? 'activado' : 'desactivado'} correctamente.`,
+          'success');
+      }
+    } catch (error) {
+      showToast('Error al actualizar el estado', 'error');
+    }finally{
+      setLoading(false);
     }
   };
 
   // Confirmar y Ejecutar Eliminación
   const confirmDelete = async () => {
-    if (!user || !deletingId) return;
-
-    setIsDeleting(true);
-    const id = deletingId;
-
     try {
-      const { error } = await supabase
-        .from('servicios')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
+      if (!user || !deletingId){
+        showToast('Error al eliminar el servicio.', 'error');
+         return};
 
-      if (!error) {
-        setServicios((prev) => prev.filter((s) => s.id !== id));
-        showToast('Servicio eliminado correctamente.', 'success');
-        if (editingId === id) resetForm();
-      } else {
-        showToast(
-          'No se puede eliminar porque existen citas asociadas a este servicio.',
-          'error'
-        );
+      setIsDeleting(true);
+      const id = deletingId;
+
+      try {
+        const { error } = await supabase
+          .from('servicios')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', user.id);
+
+        if (!error) {
+          setServicios((prev) => prev.filter((s) => s.id !== id));
+          showToast('Servicio eliminado correctamente.', 'success');
+          if (editingId === id) resetForm();
+        } else {
+          showToast(
+            'No se puede eliminar porque existen citas asociadas a este servicio.',
+            'error'
+          );
+        }
+      } catch (err) {
+        showToast('Error al eliminar el servicio.', 'error');
+      } finally {
+        setIsDeleting(false);
+        setDeletingId(null);
       }
-    } catch (err) {
-      console.error(err);
-      showToast('Error al eliminar el servicio.', 'error');
-    } finally {
-      setIsDeleting(false);
-      setDeletingId(null);
+    } catch (error) {
+      showToast('Error al eliminar el servicio', 'error');
     }
   };
 
@@ -222,39 +217,9 @@ export default function Servicios() {
     return servicios.slice(indiceInicio, indiceInicio + elementosPorPagina);
   }, [servicios, paginaActual, elementosPorPagina]);
 
-  //*********************** */
+  //******************************** */
   return (
     <div className="space-y-8 relative">
-      {/* Container de Toasts */}
-      <div className="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none">
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-top-4 ${t.tipo === 'success'
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
-              : t.tipo === 'error'
-                ? 'bg-rose-500/10 border-rose-500/30 text-rose-900 dark:text-rose-200'
-                : 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200'
-              }`}
-          >
-            {t.tipo === 'success' && <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />}
-            {t.tipo === 'error' && <XCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />}
-            {t.tipo === 'warning' && <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />}
-
-            <div className="flex-1 text-xs font-semibold leading-relaxed">
-              {t.mensaje}
-            </div>
-
-            <button
-              onClick={() => removeToast(t.id)}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
-      </div>
-
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">

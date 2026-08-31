@@ -20,3 +20,4 @@ export const showToast = (mensaje: string, tipo: 'success' | 'error' | 'warning'
 export const removeToast = (id: number, setToasts: React.Dispatch<React.SetStateAction<Toast[]>>) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
 };
+

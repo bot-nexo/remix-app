@@ -4,6 +4,7 @@ interface Props {
   fechaSeleccionada: string;
   horasDisponibles: string[];
   horaSeleccionada: string;
+  servicioNombre: string;
   cargandoHoras: boolean;
   onHoraSeleccionar: (hora: string) => void;
   onContinuar: () => void;
@@ -15,6 +16,7 @@ export default function PasoHora({
   horasDisponibles,
   horaSeleccionada,
   cargandoHoras,
+  servicioNombre,
   onHoraSeleccionar,
   onContinuar,
   onVolver,
@@ -29,6 +31,8 @@ export default function PasoHora({
       <div className="rounded-2xl bg-slate-800/80 border border-slate-700/60 p-6 shadow-xl backdrop-blur-sm">
         <h2 className="text-xl font-semibold text-slate-100">Selecciona la hora</h2>
         <p className="mt-1 text-sm text-slate-400">
+          Servicio: <span className="font-medium text-[var(--brand-primary)]">{servicioNombre}</span>
+          {' -- '}
           Fecha: <span className="font-medium text-[var(--brand-primary)]">{fechaSeleccionada}</span>
         </p>
 

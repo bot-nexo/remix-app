@@ -1,3 +1,4 @@
+import { UserStar } from 'lucide-react';
 import { EmpresaConfig } from '../../services/empresaService';
 import BackButton from '../ui/BackButton';
 
@@ -16,7 +17,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
 
       <div className="rounded-2xl bg-slate-800/80 border border-slate-700/60 p-6 shadow-xl backdrop-blur-sm space-y-6">
         <div className="flex items-center gap-4">
-          {empresa?.logo_url ? (
+          {!empresa?.logo_url ? (
             <img
               src={empresa.logo_url}
               alt={empresa.nombre}
@@ -24,7 +25,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
             />
           ) : (
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-2xl border border-slate-700">
-              💅
+              <UserStar color={empresa?.color_primario || '#1083b9ff'} />
             </div>
           )}
           <div>
@@ -40,7 +41,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
           <div className="pt-2 flex items-start gap-3">
             <span className="text-xl">📍</span>
             <div>
-              <p className="font-semibold text-slate-200">Ubicación</p>
+              <p className="font-semibold text-[var(--brand-primary)]">Ubicación</p>
               <p className="text-slate-400">{empresa?.direccion || 'No especificada'}</p>
             </div>
           </div>
@@ -49,7 +50,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
           <div className="pt-4 flex items-start gap-3">
             <span className="text-xl">⏰</span>
             <div>
-              <p className="font-semibold text-slate-200">Horario de Atención</p>
+              <p className="font-semibold text-[var(--brand-primary)]">Horario de Atención</p>
               <p className="text-slate-400 whitespace-pre-line">
                 {empresa?.horario || 'Lunes a Sábado: 8:00 AM - 7:00 PM'}
               </p>
@@ -60,7 +61,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
           <div className="pt-4 flex items-start gap-3">
             <span className="text-xl">📋</span>
             <div>
-              <p className="font-semibold text-slate-200">Políticas del Servicio</p>
+              <p className="font-semibold text-[var(--brand-primary)]">Políticas del Servicio</p>
               <p className="text-slate-400 whitespace-pre-line leading-relaxed">
                 {empresa?.politicas || 'Tolerancia máxima de 10 minutos de retraso. Cancelaciones con al menos 2 horas de anticipación.'}
               </p>

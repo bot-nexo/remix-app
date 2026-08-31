@@ -20,16 +20,22 @@ import PasoConsultarCita from '../components/booking/PasoConsultarCita';
 import PasoCancelarCita from '../components/booking/PasoCancelarCita';
 import PasoModificarCita from '../components/booking/PasoModificarCita';
 import PasoHumano from '../components/booking/PasoHumano';
+import { reagendarCita } from '../services/misCitas';
 
 //******************************* */
 export default function BookingPage() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const clienteId = urlParams.get('id');
+  // console.log('ID del cliente:', clienteId);
+
   const { showToast } = useToast();
   const [empresa, setEmpresa] = useState<EmpresaConfig | null>(null);
+  const idCliente = clienteId || '2c0e4e3d-817f-47e3-bb1d-123d953bbdd7';
 
   const [loading, setLoading] = useState(true);
 
-  const colorPrimario = empresa?.color_primario || '#10b981';
-  const colorSecundario = empresa?.color_secundario || '#059669';
+  const colorPrimario = empresa?.color_primario || '#1083b9ff';
+  const colorSecundario = empresa?.color_secundario || '#056196ff';
 
   const [paso, setPaso] = useState<Paso>('menu');
 
@@ -51,6 +57,8 @@ export default function BookingPage() {
   const [errorGuardado, setErrorGuardado] = useState('');
 
   const hoyStr = new Date().toISOString().split('T')[0];
+
+  const [citaAModificar, setCitaAModificar] = useState<any | null>(null);
 
   //********************************** */
   useEffect(() => {
@@ -123,7 +131,7 @@ export default function BookingPage() {
     setCliente((prev) => ({ ...prev, [name]: value }));
   }
 
-  async function confirmarYGuardarReserva() {
+  async function confirmarYGuardarReservaOld() {
     if (!servicioSeleccionado || !fechaSeleccionada || !horaSeleccionada) {
       showToast('Por favor, complete todos los campos.', 'error');
       return;
@@ -151,7 +159,64 @@ export default function BookingPage() {
       setGuardandoCita(false);
     }
   }
+  //-------------------------------
+  function seleccionarCitaParaReagendar(cita: any) {
+    setCitaAModificar(cita);
+    setServicioSeleccionado(cita.servicios); // Carga automáticamente el servicio de la cita
 
+    // Si ya se tienen los datos del cliente guardados en la cita:
+    if (cita.cliente_nombre) {
+      setCliente({
+        id: cita.cliente_id || '',
+        nombre: cita.cliente_nombre || '',
+        telefono: cita.cliente_telefono || ''
+      });
+    }
+
+    setPaso('fecha'); // Salta directamente al selector de fecha validado
+  }
+
+  async function confirmarYGuardarReserva() {
+    if (!servicioSeleccionado || !fechaSeleccionada || !horaSeleccionada) {
+      showToast('Por favor, complete todos los campos.', 'error');
+      return;
+    }
+
+    try {
+      setGuardandoCita(true);
+
+      if (citaAModificar) {
+        // 🔄 MODO REAGENDAR: Modifica la cita existente
+        await reagendarCita(
+          citaAModificar.id,
+          fechaSeleccionada,
+          horaSeleccionada,
+          servicioSeleccionado.duracion_minutos
+        );
+        showToast('Cita reagendada con éxito', 'success');
+      } else {
+        // ➕ MODO NUEVA CITA: Crea una nueva cita
+        await crearCita({
+          servicioId: servicioSeleccionado.id,
+          clienteId: cliente.id || null,
+          nombreCliente: cliente.nombre,
+          telefonoCliente: cliente.telefono,
+          fechaInicio: fechaSeleccionada,
+          horaInicio: horaSeleccionada,
+          horaFin: '',
+          duracionMinutos: servicioSeleccionado.duracion_minutos,
+        });
+      }
+
+      setPaso('exito');
+    } catch (err) {
+      console.error(err);
+      showToast('Ocurrió un error al procesar tu cita. Inténtalo nuevamente.', 'error');
+    } finally {
+      setGuardandoCita(false);
+    }
+  }
+  //-------------------------------
   //**************************************** */
   return (
     <main
@@ -175,7 +240,7 @@ export default function BookingPage() {
           </h1>
         </header>
 
-        {/*0MENU */}
+        {/*0 MENU */}
         {paso === 'menu' && (
           <MenuAgenda onSeleccionarOpcion={manejarSeleccionMenu} empresa={empresa} />
         )}
@@ -205,6 +270,7 @@ export default function BookingPage() {
 
         {paso === 'hora' && (
           <PasoHora
+            servicioNombre={servicioSeleccionado.nombre}
             fechaSeleccionada={fechaSeleccionada}
             horasDisponibles={horasDisponibles}
             horaSeleccionada={horaSeleccionada}
@@ -265,17 +331,17 @@ export default function BookingPage() {
 
         {/* 3 CONSULTAR CITA */}
         {paso === 'consultar_cita' && (
-          <PasoConsultarCita onVolver={() => setPaso('menu')} />
+          <PasoConsultarCita onVolver={() => setPaso('menu')} idCliente={idCliente} />
         )}
 
         {/* 4 CANCELAR CITA */}
         {paso === 'cancelar_cita' && (
-          <PasoCancelarCita onVolver={() => setPaso('menu')} />
+          <PasoCancelarCita onVolver={() => setPaso('menu')} idCliente={idCliente} />
         )}
 
         {/* 5 REAGENDAR CITA */}
         {paso === 'modificar_cita' && (
-          <PasoModificarCita onVolver={() => setPaso('menu')} />
+          <PasoModificarCita onVolver={() => setPaso('menu')} idCliente={idCliente} onSeleccionarCita={seleccionarCitaParaReagendar} />
         )}
 
         {/* 6 HUMANO */}

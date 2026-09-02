@@ -17,7 +17,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
 
       <div className="rounded-2xl bg-slate-800/80 border border-slate-700/60 p-6 shadow-xl backdrop-blur-sm space-y-6">
         <div className="flex items-center gap-4">
-          {!empresa?.logo_url ? (
+          {empresa?.logo_url ? (
             <img
               src={empresa.logo_url}
               alt={empresa.nombre}

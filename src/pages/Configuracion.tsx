@@ -13,7 +13,6 @@ export default function Configuracion() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' });
 
   //*************************************** */
   useEffect(() => {
@@ -42,8 +41,6 @@ export default function Configuracion() {
     e.preventDefault();
     if (!user) return;
     setSaving(true);
-    setMessage({ text: '', type: '' });
-
     const configs = [
       { user_id: user.id, clave: 'bot_activo', valor: botActive.toString() },
       { user_id: user.id, clave: 'bot_tolerancia', valor: tolerancia },
@@ -104,7 +101,7 @@ export default function Configuracion() {
             </label>
           </div>
 
-          {/* <div>
+          <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
               Tiempo de tolerancia para citas (minutos)
             </label>
@@ -117,9 +114,9 @@ export default function Configuracion() {
               className="w-full md:w-1/3 px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all"
             />
             <p className="text-xs text-slate-500 mt-2">Tiempo máximo que esperará el cliente antes de cancelar la cita por retraso.</p>
-          </div> */}
+          </div>
 
-          {/* <div>
+          <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
               Indicaciones Especiales para la IA
             </label>
@@ -131,7 +128,7 @@ export default function Configuracion() {
               className="w-full px-4 py-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all resize-none"
             />
             <p className="text-xs text-slate-500 mt-2">Instrucciones que el bot utilizará como contexto al conversar con los clientes.</p>
-          </div> */}
+          </div>
 
           <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
             <button

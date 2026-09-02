@@ -123,7 +123,7 @@ export default function PasoCancelarCita({ onVolver, idCliente }: Props) {
                                 <div>
                                     <h3 className="font-semibold text-slate-100 text-sm leading-tight">
                                         {/* {cita.cliente_nombre}-- */}
-                                        <span>{cita.servicios.nombre}</span>
+                                        <span>{cita.servicios?.nombre || 'Servicio'}</span>
 
                                     </h3>
                                     <div className="flex items-center gap-1 text-[11px] text-[var(--brand-primary)] mt-0.5">
@@ -151,7 +151,7 @@ export default function PasoCancelarCita({ onVolver, idCliente }: Props) {
                         </div>
 
                         {/* Botón de Cancelar/Eliminar Cita */}
-                        {cita.estado !== "cancelado" && (
+                        {!["CANCELADO", "CANCELADO_INASISTENCIA", "COMPLETADA"].includes(cita.estado) && (
                             <div className="pt-1 flex justify-end">
                                 <button
                                     onClick={() => setCitaAEliminar(cita)}
@@ -174,7 +174,7 @@ export default function PasoCancelarCita({ onVolver, idCliente }: Props) {
 
                         className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors active:scale-[0.99] disabled:opacity-50"
                     >
-                        {citas ? (
+                        {loading ? (
                             <>
                                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
                                 <span>Cargando...</span>
@@ -203,7 +203,7 @@ export default function PasoCancelarCita({ onVolver, idCliente }: Props) {
                         <p className="text-xs text-slate-300 leading-relaxed">
                             ¿Estás seguro de que deseas cancelar la cita? <br />
                             <strong>Servicio:</strong>
-                            <strong className="text-slate-100"><span className="text-xs font-semibold text-red-400">{" "}{citaAEliminar.servicios.nombre}</span></strong>
+                            <strong className="text-slate-100"><span className="text-xs font-semibold text-red-400">{" "}{citaAEliminar.servicios?.nombre || 'Servicio'}</span></strong>
                             <br /><strong>Fecha:</strong>
                             <strong className="text-slate-100"><span className="text-xs font-semibold text-red-400">{" "}{citaAEliminar.fecha_inicio}</span></strong>
                             -- <strong>Hora:</strong>

@@ -30,7 +30,7 @@ export default function BookingPage() {
 
   const { showToast } = useToast();
   const [empresa, setEmpresa] = useState<EmpresaConfig | null>(null);
-  const idCliente = clienteId || '2c0e4e3d-817f-47e3-bb1d-123d953bbdd7';
+  const idCliente = clienteId || '';
 
   const [loading, setLoading] = useState(true);
 
@@ -82,6 +82,7 @@ export default function BookingPage() {
 
   function manejarSeleccionMenu(opcion: number) {
     setOpcionMenu(opcion);
+    setCitaAModificar(null);
     if (opcion === 1) {
       setPaso('servicio');
     } else if (opcion === 2) {
@@ -162,7 +163,11 @@ export default function BookingPage() {
   //-------------------------------
   function seleccionarCitaParaReagendar(cita: any) {
     setCitaAModificar(cita);
-    setServicioSeleccionado(cita.servicios); // Carga automáticamente el servicio de la cita
+    // Carga el servicio con duración completa (fallback a duracion_servicio de la cita)
+    setServicioSeleccionado({
+      ...cita.servicios,
+      duracion_minutos: cita.servicios?.duracion_minutos || cita.duracion_servicio || 30
+    });
 
     // Si ya se tienen los datos del cliente guardados en la cita:
     if (cita.cliente_nombre) {
@@ -211,6 +216,7 @@ export default function BookingPage() {
       setPaso('exito');
     } catch (err) {
       console.error(err);
+      setErrorGuardado('Ocurrió un error al procesar tu cita. Inténtalo nuevamente.');
       showToast('Ocurrió un error al procesar tu cita. Inténtalo nuevamente.', 'error');
     } finally {
       setGuardandoCita(false);
@@ -264,7 +270,8 @@ export default function BookingPage() {
             hoyStr={hoyStr}
             onFechaChange={setFechaSeleccionada}
             onContinuar={continuarAHorarios}
-            onVolver={() => setPaso('servicio')}
+            onVolver={() => citaAModificar ? setPaso('menu') : setPaso('servicio')}
+            textoVolver={citaAModificar ? 'Volver al Menú Principal' : 'Volver a Servicios'}
           />
         )}
 
@@ -346,7 +353,7 @@ export default function BookingPage() {
 
         {/* 6 HUMANO */}
         {paso === 'humano' && (
-          <PasoHumano onVolver={() => setPaso('menu')} />
+          <PasoHumano onVolver={() => setPaso('menu')} empresaNombre={empresa?.nombre} />
         )}
 
         {/* 7 INF EMPRESA */}

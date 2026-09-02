@@ -17,13 +17,14 @@ export type Citas = {
 
 export async function obtenerMisCitas(clienteId: string): Promise<Citas[] | null> {
     const { data, error } = await supabase
-        .from('citas') // Cambia 'empresa' por el nombre exacto de tu tabla si es diferente
-         .select(`
+        .from('citas')
+        .select(`
             *,
             servicios (
                 id,
                 nombre,
-                valor
+                valor,
+                duracion_minutos
             )
         `)
         .eq('cliente_id', clienteId);
@@ -44,7 +45,8 @@ export async function obtenerActivas(clienteId: string): Promise<Citas[] | null>
             servicios (
                 id,
                 nombre,
-                valor
+                valor,
+                duracion_minutos
             )
         `)
         .eq('cliente_id', clienteId)

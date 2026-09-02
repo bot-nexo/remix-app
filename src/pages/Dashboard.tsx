@@ -339,15 +339,15 @@ export default function Dashboard() {
                 <div key={cita.id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-800/80">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center font-bold text-xs">
-                      {cita.cliente_nombre.charAt(0)}
+                      {cita.cliente_nombre?.charAt(0) || '?'}
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-white">{cita.cliente_nombre}</p>
+                      <p className="text-xs font-semibold text-white">{cita.cliente_nombre || 'Sin nombre'}</p>
                       <p className="text-[10px] text-slate-400">{cita.servicios?.nombre || 'Servicio'}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="font-mono text-xs text-slate-300 font-medium">{cita.hora_inicio.slice(0, 5)}</span>
+                    <span className="font-mono text-xs text-slate-300 font-medium">{cita.hora_inicio?.slice(0, 5) || '--:--'}</span>
                     <div className="mt-0.5">
                       <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${cita.estado === 'COMPLETADA' ? 'bg-emerald-500/10 text-emerald-400' :
                         cita.estado === 'EN_ESPERA' ? 'bg-blue-500/10 text-blue-400' : 'bg-rose-500/10 text-rose-400'

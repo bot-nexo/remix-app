@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Lock, Unlock, Clock, AlertCircle } from 'lucide-react';
 import { DIAS_SEMANA } from '../arreglos';
 import { useToast } from '../contexts/ToastContext';
+import { parsearHorario } from '../functions';
 
 export default function Calendario() {
     const { showToast } = useToast();
@@ -14,6 +15,7 @@ export default function Calendario() {
     const [bloqueosExistentes, setBloqueosExistentes] = useState<any[]>([]);
     const [horariosExistentes, setHorariosExistentes] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [horarioEmpresa, setHorarioEmpresa] = useState<{ apertura: string; cierre: string }>({ apertura: '09:00', cierre: '19:00' });
 
     // Estado del modal de bloqueo
     const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(null);
@@ -32,11 +34,26 @@ export default function Calendario() {
         (fechaActual.getFullYear() === anoEnCurso && fechaActual.getMonth() <= hoy.getMonth());
 
     // Candado para no avanzar más allá de Diciembre del año en curso
-    const esUltimoMesDelAno = fechaActual.getFullYear() >= anoEnCurso && fechaActual.getMonth() === 11;
+    const esUltimoMesDelAno = fechaActual.getFullYear() >= anoEnCurso && fechaActual.getMonth() === 11;    //**************************************** */
+    
+    // Cargar horario de la empresa
+    useEffect(() => {
+        if (!user) return;
+        const fetchHorarioEmpresa = async () => {
+            const { data } = await supabase
+                .from('empresa')
+                .select('horario')
+                .eq('user_id', user.id)
+                .limit(1)
+                .maybeSingle();
 
-
-    //**************************************** */
-  
+            if (data?.horario) {
+                const parsed = parsearHorario(data.horario);
+                setHorarioEmpresa(parsed);
+            }
+        };
+        fetchHorarioEmpresa();
+    }, [user]);
 
     // Cargar horarios del mes activo
     useEffect(() => {
@@ -110,8 +127,8 @@ export default function Calendario() {
             const esMismoMes = hoy.getFullYear() === ano && hoy.getMonth() === mes;
             const diaInicio = esMismoMes ? hoy.getDate() : 1;
 
-            const HORA_INICIO = '09:00:00';
-            const HORA_FIN = '19:00:00';
+            const HORA_INICIO = `${horarioEmpresa.apertura}:00`;
+            const HORA_FIN = `${horarioEmpresa.cierre}:00`;
             const nuevosHorarios = [];
 
             for (let dia = diaInicio; dia <= ultimoDia; dia++) {
@@ -238,9 +255,13 @@ export default function Calendario() {
     const eliminarBloqueo = async (id: string) => {
         setLoading(true);
         const { error } = await supabase.from('bloqueos_agenda').delete().eq('id', id);
-        if (error) showToast(error.message, 'error');
-        showToast('Día desbloqueado correctamente.', 'success');
+        if (error) {
+            showToast(error.message, 'error');
+        } else {
+            showToast('Día desbloqueado correctamente.', 'success');
+        }
         cargarAgendaMes();
+        setLoading(false);
     };
 
     const formatearFecha = (date: Date) => {
@@ -313,7 +334,7 @@ export default function Calendario() {
                             className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl shadow-lg transition-all border border-emerald-400/30 whitespace-nowrap disabled:opacity-50"
                         >
                             <Clock size={16} />
-                            <span>{loading ? 'Generando en BD...' : 'Habilitar Mes (09:00 - 19:00)'}</span>
+                            <span>{loading ? 'Generando en BD...' : `Habilitar Mes (${horarioEmpresa.apertura} - ${horarioEmpresa.cierre})`}</span>
                         </button>
                     </div>
                 )}

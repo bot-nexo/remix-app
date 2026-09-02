@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Bot } from 'lucide-react';
+
 import { useToast } from '../contexts/ToastContext';
 
 export default function Login() {
@@ -26,7 +26,6 @@ export default function Login() {
        .select("nombre, logo_url, color_primario, color_secundario")
        .limit(1)
        .maybeSingle();
-     console.log(empresa);
      if (!empresa) {
        showToast('No se encontró información de la empresa', 'error');
        setIsSubmitting(false);
@@ -80,9 +79,7 @@ try {
     <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <style>{style}</style>
-        <div className={`mx-auto h-16 w-16 bg-brand-primary rounded-full flex items-center justify-center shadow-lg shadow-brand-primary/20`}>
-          <Bot className="text-white h-8 w-8" />
-        </div>
+        <img src="/logo.svg" alt="Logo" className="mx-auto h-20 w-20 drop-shadow-lg" />
         <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-800 dark:text-white">
           Panel de Administración
         </h2>

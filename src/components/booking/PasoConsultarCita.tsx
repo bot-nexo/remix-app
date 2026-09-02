@@ -122,7 +122,7 @@ export default function PasoConsultarCita({ onVolver, idCliente }: Props) {
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-slate-100 text-sm leading-tight">
-                                        {cita.servicios.nombre}
+                                        {cita.servicios?.nombre || 'Servicio'}
                                     </h3>
                                     <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5">
                                         <Clock className="w-3 h-3 text-[var(--brand-primary)]" />

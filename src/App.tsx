@@ -5,7 +5,7 @@
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-// import { ThemeProvider } from './contexts/ThemeContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import DashboardLayout from './layouts/DashboardLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -21,7 +21,7 @@ import { ToastProvider } from './contexts/ToastContext';
 export default function App() {
   return (
     <AuthProvider>
-      {/* <ThemeProvider> */}
+      <ThemeProvider>
       <ToastProvider>
         <Router>
           <Routes>
@@ -40,7 +40,7 @@ export default function App() {
           </Routes>
         </Router>
       </ToastProvider>
-      {/* </ThemeProvider> */}
+      </ThemeProvider>
     </AuthProvider>
   );
 }

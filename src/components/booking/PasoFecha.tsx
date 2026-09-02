@@ -8,6 +8,7 @@ interface Props {
   onFechaChange: (fecha: string) => void;
   onContinuar: () => void;
   onVolver: () => void;
+  textoVolver?: string;
 }
 
 export default function PasoFecha({
@@ -18,11 +19,12 @@ export default function PasoFecha({
   onFechaChange,
   onContinuar,
   onVolver,
+  textoVolver = 'Volver a Servicios',
 }: Props) {
   return (
     <section>
       <BackButton
-        text="Volver a Servicios"
+        text={textoVolver}
         onClick={onVolver}
       />
 

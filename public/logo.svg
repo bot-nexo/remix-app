@@ -1,0 +1,31 @@
+<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff2a85"/>
+      <stop offset="100%" stop-color="#e11d48"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#ff2a85" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="60" cy="60" r="56" fill="url(#grad)" filter="url(#shadow)"/>
+
+  <!-- Calendar page -->
+  <rect x="30" y="34" width="60" height="56" rx="8" fill="white" opacity="0.95"/>
+
+  <!-- Calendar header tint -->
+  <path d="M30,42 Q30,34 38,34 L82,34 Q90,34 90,42 L90,48 L30,48 Z" fill="url(#grad)" opacity="0.18"/>
+
+  <!-- Calendar binding rings -->
+  <rect x="40" y="27" width="5" height="15" rx="2.5" fill="white"/>
+  <rect x="57.5" y="27" width="5" height="15" rx="2.5" fill="white"/>
+  <rect x="75" y="27" width="5" height="15" rx="2.5" fill="white"/>
+
+  <!-- Heart (beauty / care) -->
+  <path d="M60,80 C60,80 43,68 43,58.5 C43,53 47,49 51.5,49 C55,49 57.5,51 60,54.5 C62.5,51 65,49 68.5,49 C73,49 77,53 77,58.5 C77,68 60,80 60,80 Z" fill="url(#grad)"/>
+
+  <!-- Heart shine -->
+  <ellipse cx="54" cy="56" rx="3" ry="3.5" fill="white" opacity="0.45"/>
+</svg>

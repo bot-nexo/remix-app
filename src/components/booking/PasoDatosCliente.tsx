@@ -68,7 +68,7 @@ export default function PasoDatosCliente({ cliente, onChangeInput, onSubmit, onV
             mt-6 w-full rounded-xl px-4 py-3 font-semibold  transition active:scale-[0.99]
             ${cliente.nombre.trim() && cliente.telefono.trim()
               ? 'bg-[var(--brand-primary)] hover:opacity-90 text-slate-100 cursor-pointer'
-              : 'cursor-not-allowed bg-slate-700  text-slate-900'
+              : 'cursor-not-allowed bg-slate-700 text-slate-400'
             }
           `}
         >

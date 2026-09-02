@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { AlertCircle, Building2, CheckCircle2, Save, Upload, X, XCircle } from 'lucide-react';
+import { Building2, Save, Upload } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 export default function Empresa() {

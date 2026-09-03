@@ -262,6 +262,11 @@ CREATE POLICY "Acceso total para la gestion del flujo de conversacion"
 -- Permite que clientes finales o n8n consulten horarios/servicios sin autenticar usuario auth.
 -------------------------------------------------------------------------------
 
+CREATE POLICY "Lectura pública de empresa"
+  ON public.empresa FOR SELECT
+  TO anon
+  USING (true);
+
 CREATE POLICY "Lectura pública de servicios"
   ON public.servicios FOR SELECT
   TO anon
@@ -276,3 +281,19 @@ CREATE POLICY "Lectura pública de bloqueos_agenda"
   ON public.bloqueos_agenda FOR SELECT
   TO anon
   USING (true);
+
+CREATE POLICY "Clientes pueden crear citas"
+  ON public.citas FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
+CREATE POLICY "Clientes pueden leer sus propias citas por cliente_id"
+  ON public.citas FOR SELECT
+  TO anon
+  USING (true);
+
+CREATE POLICY "Clientes pueden cancelar sus citas"
+  ON public.citas FOR UPDATE
+  TO anon
+  USING (true)
+  WITH CHECK (true);

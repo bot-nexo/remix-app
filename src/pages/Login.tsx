@@ -2,45 +2,47 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-
 import { useToast } from '../contexts/ToastContext';
+import { LogIn, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
   const { showToast } = useToast();
   const { user, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [empresa, setEmpresa] = useState<any>(null);
 
-  //********************* */
   useEffect(() => {
     traerInfoEmpresa();
   }, []);
 
   const traerInfoEmpresa = async () => {
-   try {
-     const { data: empresa } = await supabase
-       .from("empresa")
-       .select("nombre, logo_url, color_primario, color_secundario")
-       .limit(1)
-       .maybeSingle();
-     if (!empresa) {
-       showToast('No se encontró información de la empresa', 'error');
-       setIsSubmitting(false);
-       return;
-     }
-     localStorage.setItem('empresa', JSON.stringify(empresa));
-     setEmpresa(empresa);
-   } catch (error) {
-    showToast('Error al cargar información de la empresa', 'error');
-    
-   }
+    try {
+      const { data: empresa } = await supabase
+        .from("empresa")
+        .select("nombre, logo_url, color_primario, color_secundario")
+        .limit(1)
+        .maybeSingle();
+      if (!empresa) {
+        showToast('No se encontró información de la empresa', 'error');
+        return;
+      }
+      localStorage.setItem('empresa', JSON.stringify(empresa));
+      setEmpresa(empresa);
+    } catch (error) {
+      showToast('Error al cargar información de la empresa', 'error');
+    }
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-slate-950 flex items-center justify-center" />;
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+      </div>
+    );
   }
 
   if (user) {
@@ -48,108 +50,139 @@ export default function Login() {
   }
 
   const handleLogin = async (e: React.FormEvent) => {
-try {
-      e.preventDefault();
-      setIsSubmitting(true);
-      setError(null);
-  
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-  
+
       if (error) {
         setError(error.message);
-        setIsSubmitting(false);
       }
-} catch (error) {
-  showToast('Error al iniciar sesión', 'error');
-  setIsSubmitting(false);
-}
+    } catch (error) {
+      showToast('Error al iniciar sesión', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const style = `
-  :root {
-    --brand-primary: ${empresa?.color_primario};
-    --brand-secondary: ${empresa?.color_secundario};
-  }
-  `;
-  //***************************** */
+  const colorPrimario = empresa?.color_primario || '#1083b9';
+  const colorSecundario = empresa?.color_secundario || '#056196';
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-200">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <style>{style}</style>
-        <img src="/logo.svg" alt="Logo" className="mx-auto h-20 w-20 drop-shadow-lg" />
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-slate-800 dark:text-white">
-          Panel de Administración
-        </h2>
-        <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-300">
-          Inicia sesión para acceder a tu cuenta
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-[#020617] dark:via-[#0a0f1e] dark:to-[#020617] flex flex-col items-center justify-center px-4 py-12 transition-colors duration-300">
+      {/* Branding */}
+      <div className="mb-8 text-center">
+        {empresa?.logo_url ? (
+          <img
+            src={empresa.logo_url}
+            alt={empresa.nombre}
+            className="mx-auto mb-4 h-20 w-20 rounded-2xl object-cover shadow-xl ring-4 ring-white/10 dark:ring-white/5"
+          />
+        ) : (
+          <div
+            className="mx-auto mb-4 h-20 w-20 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-xl"
+            style={{ background: `linear-gradient(135deg, ${colorPrimario}, ${colorSecundario})` }}
+          >
+            {empresa?.nombre?.charAt(0) || 'A'}
+          </div>
+        )}
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+          {empresa?.nombre || 'Panel Admin'}
+        </h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Gestiona tu negocio desde aquí
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-[#0f172a] py-8 px-4 shadow-xl border border-slate-200 dark:border-slate-800 sm:rounded-2xl sm:px-10 transition-colors">
-          <form className="space-y-6" onSubmit={handleLogin}>
+      {/* Login Card */}
+      <div className="w-full max-w-sm">
+        <div className="bg-white dark:bg-[#0f172a] rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-black/20 border border-slate-200/60 dark:border-slate-800/60 p-8">
+          <div className="mb-6">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Iniciar Sesión</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Ingresa tus credenciales para acceder
+            </p>
+          </div>
+
+          <form className="space-y-4" onSubmit={handleLogin}>
             {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-900/50">
+              <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-3 rounded-xl text-sm border border-red-200 dark:border-red-900/30 flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></div>
                 {error}
               </div>
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Correo Electrónico
               </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-4 py-3 border border-slate-300 dark:border-slate-700 rounded-xl shadow-sm placeholder-slate-400 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-colors sm:text-sm"
-                  placeholder="admin@ejemplo.com"
-                />
-              </div>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all text-sm"
+                placeholder="tu@email.com"
+              />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Contraseña
               </label>
-              <div className="mt-1">
+              <div className="relative">
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-4 py-3 border border-slate-300 dark:border-slate-700 rounded-xl shadow-sm placeholder-slate-400 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-transparent transition-colors sm:text-sm"
+                  className="w-full px-4 py-2.5 pr-10 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all text-sm"
                   placeholder="••••••••"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full flex justify-center py-3 px-4 border border-transparent 
-                rounded-xl shadow-md text-sm font-medium text-white bg-brand-primary 
-                hover:bg-brand-secondary focus:outline-none focus:ring-2 focus:ring-offset-2
-                focus:ring-brand-primary dark:focus:ring-offset-slate-900 
-                disabled:opacity-50 transition-all"
-              >
-                {isSubmitting ? 'Iniciando sesión...' : 'Ingresar'}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-brand-primary/20 hover:shadow-brand-primary/30 hover:scale-[1.01] active:scale-[0.99]"
+              style={{ backgroundColor: colorPrimario }}
+            >
+              <LogIn size={16} />
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Ingresando...
+                </span>
+              ) : (
+                'Ingresar'
+              )}
+            </button>
           </form>
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-[11px] text-slate-400 dark:text-slate-600 mt-6">
+          © {new Date().getFullYear()} {empresa?.nombre || 'Tu negocio'}. Todos los derechos reservados.
+        </p>
       </div>
     </div>
   );

@@ -1,43 +1,42 @@
-type Servicio = {
-  nombre: string;
-};
+import { CheckCircle, Calendar, Clock, User } from "lucide-react";
 
-type DatosCliente = {
-  nombre: string;
-  telefono: string;
-};
+type Servicio = { nombre: string; };
+type DatosCliente = { nombre: string; telefono: string; };
 
 interface Props {
-  servicio: Servicio;
-  fecha: string;
-  hora: string;
-  cliente: DatosCliente;
+  servicio: Servicio; fecha: string; hora: string; cliente: DatosCliente;
   onNuevaReserva: () => void;
 }
 
 export default function PasoExito({ servicio, fecha, hora, cliente, onNuevaReserva }: Props) {
+  const colorPrimario = 'var(--brand-primary)';
   return (
-    <section className="rounded-2xl bg-slate-800/80 border border-slate-700/60 p-8 text-center shadow-xl backdrop-blur-sm">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--brand-primary)]/50 border-2 border-[var(--brand-primary)]/80 text-white text-2xl">
-        ✓
+    <section className="rounded-2xl border border-white/5 p-6 text-center" style={{ background: 'rgba(255,255,255,0.02)' }}>
+      <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: `${colorPrimario}20` }}>
+        <CheckCircle className="w-8 h-8" style={{ color: colorPrimario }} />
       </div>
-      <h2 className="mt-4 text-2xl font-bold text-slate-100">¡Cita Reservada con Éxito!</h2>
-      <p className="mt-2 text-slate-300">
-        Te esperamos el <span className="font-semibold text-[var(--brand-primary)]">{fecha}</span> a las <span className="font-semibold text-[var(--brand-primary)]">{hora}</span>.
-      </p>
+      <h2 className="text-xl font-bold text-white">¡Cita Reservada!</h2>
+      <p className="mt-2 text-sm text-slate-400">Te esperamos el <span className="font-semibold" style={{ color: colorPrimario }}>{fecha}</span> a las <span className="font-semibold" style={{ color: colorPrimario }}>{hora}</span></p>
 
-      <div className="mt-6 rounded-xl bg-slate-900/70 border border-[var(--brand-primary)]/50 p-4 text-left text-md space-y-1">
-        <p><strong className="text-slate-100">Servicio:</strong> <span className="text-[var(--brand-primary)] text-lg font-medium">{servicio.nombre}</span></p>
-        <p><strong className="text-slate-100">Cliente:</strong> <span className="text-[var(--brand-primary)] text-lg font-medium">{cliente.nombre}</span></p>
-        <p><strong className="text-slate-100">Teléfono:</strong> <span className="text-[var(--brand-primary)] text-lg font-medium">{cliente.telefono}</span></p>
+      <div className="mt-5 rounded-xl border border-white/5 p-4 text-left space-y-2.5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${colorPrimario}15` }}><Calendar size={13} style={{ color: colorPrimario }} /></div>
+          <span className="text-xs text-slate-300">{fecha} · {hora}</span>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${colorPrimario}15` }}><User size={13} style={{ color: colorPrimario }} /></div>
+          <span className="text-xs text-slate-300">{cliente.nombre} · {cliente.telefono}</span>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${colorPrimario}15` }}><Clock size={13} style={{ color: colorPrimario }} /></div>
+          <span className="text-xs font-medium" style={{ color: colorPrimario }}>{servicio.nombre}</span>
+        </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onNuevaReserva}
-        className="mt-8 w-full rounded-xl bg-[var(--brand-primary)] px-4 py-3 font-semibold text-slate-100 transition hover:opacity-90 active:scale-[0.99]"
-      >
-        Terminar
+      <button type="button" onClick={onNuevaReserva}
+        className="mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] hover:brightness-110"
+        style={{ background: colorPrimario }}>
+        Volver al Inicio
       </button>
     </section>
   );

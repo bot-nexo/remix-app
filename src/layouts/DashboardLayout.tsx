@@ -36,13 +36,12 @@ export default function DashboardLayout() {
   }
 
   const navigation = [
-    { name: 'Calendario', href: '/calendario', icon: CalendarHeart },
-    { name: 'Configuración', href: '/config', icon: Settings },
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Empresa', href: '/empresa', icon: Building2 },
-    { name: 'Gest. Citas', href: '/gestion-citas', icon: CalendarClock },
-    //{ name: 'Lista Blanca', href: '/lista-blanca', icon: ShieldAlert },
+    { name: 'Calendario', href: '/calendario', icon: CalendarHeart },
+    { name: 'Gestión de Citas', href: '/gestion-citas', icon: CalendarClock },
     { name: 'Servicios', href: '/servicios', icon: Tags },
+    { name: 'Empresa', href: '/empresa', icon: Building2 },
+    { name: 'Configuración', href: '/config', icon: Settings },
   ];
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -51,44 +50,51 @@ export default function DashboardLayout() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col md:flex-row">
       {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] z-20 sticky top-0">
+      <div className="md:hidden flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0f172a] z-40 sticky top-0 backdrop-blur-xl bg-white/80 dark:bg-[#0f172a]/80">
         <div className="flex items-center gap-3">
           {logoUrl ? (
-            <img src={logoUrl} alt="Logo" className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-sm" />
+            <img src={logoUrl} alt="Logo" className="w-9 h-9 rounded-xl object-cover shadow-sm" />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-white font-bold text-sm shadow-[0_0_15px_rgba(255,42,133,0.4)]">
+            <div className="w-9 h-9 rounded-xl bg-brand-primary flex items-center justify-center text-white font-bold text-sm">
               {companyName.charAt(0).toUpperCase()}
             </div>
           )}
-          <span className="font-semibold text-slate-900 dark:text-white truncate max-w-[150px]">{companyName}</span>
+          <div>
+            <span className="font-bold text-slate-900 dark:text-white text-sm block leading-tight">{companyName}</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider">Panel Admin</span>
+          </div>
         </div>
-        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-slate-600 dark:text-slate-400">
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-10 w-64 bg-white dark:bg-[#0f172a] border-r border-slate-200 dark:border-slate-800 
-        transform transition-transform duration-300 ease-in-out flex flex-col
+        fixed inset-y-0 left-0 z-50 w-72 flex flex-col
+        bg-white dark:bg-[#0f172a] border-r border-slate-200/80 dark:border-slate-800/60
+        transform transition-transform duration-300 ease-out
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:relative md:translate-x-0
+        md:relative md:translate-x-0 md:z-auto
       `}>
         {/* Profile Header */}
-        <div className="p-6 flex flex-col items-center justify-center border-b border-slate-200 dark:border-slate-800 hidden md:flex">
-          {logoUrl ? (
-            <img src={logoUrl} alt="Logo" className="w-20 h-20 rounded-full object-cover border-2 border-brand-primary shadow-[0_0_15px_rgba(255,42,133,0.4)] mb-4" />
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary flex items-center justify-center text-white font-bold text-3xl shadow-[0_0_15px_rgba(255,42,133,0.4)] mb-4">
-              {companyName.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white text-center truncate w-full">{companyName}</h2>
-          <span className="text-[10px] text-slate-500 font-semibold tracking-widest uppercase mt-1">Panel Admin</span>
+        <div className="px-6 pt-8 pb-6 flex flex-col items-center border-b border-slate-100 dark:border-slate-800/60 hidden md:flex">
+          <div className="relative mb-4">
+            {logoUrl ? (
+              <img src={logoUrl} alt="Logo" className="w-16 h-16 rounded-2xl object-cover shadow-lg ring-2 ring-white dark:ring-slate-800" />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-primary to-brand-secondary flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+                {companyName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-white dark:border-[#0f172a]"></div>
+          </div>
+          <h2 className="text-base font-bold text-slate-900 dark:text-white text-center truncate w-full">{companyName}</h2>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold tracking-widest uppercase mt-1">Administración</span>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -97,45 +103,45 @@ export default function DashboardLayout() {
                 to={item.href}
                 onClick={closeMobileMenu}
                 className={`
-                  flex items-center gap-3 px-4 py-3 rounded-xl transition-colors duration-200 group
+                  flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
                   ${isActive
-                    ? 'bg-brand-primary/10 text-brand-primary font-medium dark:border dark:border-brand-primary/20'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/20'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
                   }
                 `}
               >
-                <item.icon size={20} className={isActive ? 'text-brand-primary' : 'text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors'} />
-                <span className="text-sm font-medium">{item.name}</span>
+                <item.icon size={18} className={isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors'} />
+                <span>{item.name}</span>
               </Link>
             );
           })}
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+        <div className="px-3 py-4 border-t border-slate-100 dark:border-slate-800/60 space-y-1">
           <button
             onClick={toggleTheme}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-colors"
           >
-            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-            <span className="text-sm">{isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
+            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            <span>{isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
           </button>
           <button
             onClick={() => {
               signOut();
               closeMobileMenu();
             }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
           >
-            <LogOut size={20} />
-            <span className="text-sm">Cerrar Sesión</span>
+            <LogOut size={18} />
+            <span>Cerrar Sesión</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 relative overflow-y-auto h-[calc(100vh-65px)] md:h-screen">
-        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+      <main className="flex-1 relative overflow-y-auto h-[calc(100vh-61px)] md:h-screen">
+        <div className="p-5 md:p-8 max-w-7xl mx-auto">
           <Outlet />
         </div>
       </main>
@@ -143,7 +149,7 @@ export default function DashboardLayout() {
       {/* Mobile overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-0 md:hidden"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
           onClick={closeMobileMenu}
         />
       )}

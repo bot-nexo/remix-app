@@ -23,60 +23,62 @@ import PasoModificarCita from '../components/booking/PasoModificarCita';
 import PasoHumano from '../components/booking/PasoHumano';
 import { reagendarCita } from '../services/misCitas';
 
-//******************************* */
 export default function BookingPage() {
   const urlParams = new URLSearchParams(window.location.search);
-  const clienteId = urlParams.get('id');
-  // console.log('ID del cliente:', clienteId);
-
+  const clienteIdFromUrl = urlParams.get('id') || '2c0e4e3d-817f-47e3-bb1d-123d953bbdd7';
   const { showToast } = useToast();
   const { user, signOut } = useAuth();
   const [empresa, setEmpresa] = useState<EmpresaConfig | null>(null);
-  const idCliente = clienteId || '';
 
+  // Capturar id del cliente: URL > localStorage > null
+  const [idCliente, setIdCliente] = useState<string | null>(() => {
+    if (clienteIdFromUrl) {
+      localStorage.setItem('angel_cliente_id', clienteIdFromUrl);
+      return clienteIdFromUrl;
+    }
+    return localStorage.getItem('angel_cliente_id');
+  });
   const [loading, setLoading] = useState(true);
-
   const colorPrimario = empresa?.color_primario || '#1083b9ff';
   const colorSecundario = empresa?.color_secundario || '#056196ff';
-
   const [paso, setPaso] = useState<Paso>('menu');
-
   const [opcionMenu, setOpcionMenu] = useState<number | null>(null);
-
   const [servicioSeleccionado, setServicioSeleccionado] = useState<Servicio | null>(null);
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>('');
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
   const [horaSeleccionada, setHoraSeleccionada] = useState<string>('');
   const [cargandoHoras, setCargandoHoras] = useState(false);
-
-  const [cliente, setCliente] = useState<DatosCliente>({
-    id: '',
-    nombre: '',
-    telefono: '',
-  });
-
+  const [cliente, setCliente] = useState<DatosCliente>({ id: '', nombre: '', telefono: '' });
   const [guardandoCita, setGuardandoCita] = useState(false);
   const [errorGuardado, setErrorGuardado] = useState('');
-
-  const hoyStr = new Date().toISOString().split('T')[0];
-
+  const hoy = new Date();
+  const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
   const [citaAModificar, setCitaAModificar] = useState<any | null>(null);
 
-  //********************************** */
   useEffect(() => {
-    // Si hay un usuario logueado (admin), cerrar sesión automáticamente al acceder a /reservar
-    if (user) {
-      signOut();
-    }
+    if (user) { signOut(); return; }
     cargarDatosIniciales();
   }, [user]);
+
+  // Si no hay idCliente, mostrar error
+  if (!idCliente) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#0a0a0a' }}>
+        <div className="text-center max-w-sm">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <h2 className="text-lg font-bold text-white mb-2">Enlace no válido</h2>
+          <p className="text-sm text-slate-400">No se encontró tu identificación de cliente. Por favor accede desde el enlace proporcionado por WhatsApp.</p>
+        </div>
+      </div>
+    );
+  }
 
   async function cargarDatosIniciales() {
     try {
       setLoading(true);
-      const [empresaData] = await Promise.all([
-        obtenerEmpresaConfig(),
-      ]);
+      const [empresaData] = await Promise.all([obtenerEmpresaConfig()]);
       setEmpresa(empresaData);
     } catch (err) {
       console.error(err);
@@ -89,48 +91,20 @@ export default function BookingPage() {
   function manejarSeleccionMenu(opcion: number) {
     setOpcionMenu(opcion);
     setCitaAModificar(null);
-    if (opcion === 1) {
-      setPaso('servicio');
-    } else if (opcion === 2) {
-      setPaso('servicios_precios');
-    } else if (opcion === 3) {
-      setPaso('consultar_cita');
-    } else if (opcion === 4) {
-      setPaso('cancelar_cita');
-    } else if (opcion === 5) {
-      setPaso('modificar_cita');
-    } else if (opcion === 6) {
-      setPaso('humano');
-    } else if (opcion === 7) {
-      setPaso('info_empresa');
-    }
-    else {
-      setPaso('en_construccion');
-    }
+    const pasosMap: Record<number, Paso> = { 1: 'servicio', 2: 'servicios_precios', 3: 'consultar_cita', 4: 'cancelar_cita', 5: 'modificar_cita', 6: 'humano', 7: 'info_empresa' };
+    setPaso(pasosMap[opcion] || 'en_construccion');
   }
 
   async function continuarAHorarios() {
-    if (!fechaSeleccionada || !servicioSeleccionado) {
-      showToast('Por favor, seleccione una fecha y un servicio.', 'error');
-      return;
-    }
-
+    if (!fechaSeleccionada || !servicioSeleccionado) { showToast('Selecciona una fecha y un servicio.', 'error'); return; }
     try {
       setCargandoHoras(true);
       setPaso('hora');
       setHoraSeleccionada('');
-
-      const slots = await obtenerHorariosDisponibles(
-        fechaSeleccionada,
-        servicioSeleccionado.duracion_minutos
-      );
+      const slots = await obtenerHorariosDisponibles(fechaSeleccionada, servicioSeleccionado.duracion_minutos);
       setHorasDisponibles(slots);
-    } catch (err) {
-      console.error(err);
-      showToast('No pudimos obtener los horarios disponibles.', 'error');
-    } finally {
-      setCargandoHoras(false);
-    }
+    } catch (err) { console.error(err); showToast('No pudimos obtener los horarios.', 'error'); }
+    finally { setCargandoHoras(false); }
   }
 
   function manejarCambioInput(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
@@ -138,239 +112,75 @@ export default function BookingPage() {
     setCliente((prev) => ({ ...prev, [name]: value }));
   }
 
-  async function confirmarYGuardarReservaOld() {
-    if (!servicioSeleccionado || !fechaSeleccionada || !horaSeleccionada) {
-      showToast('Por favor, complete todos los campos.', 'error');
-      return;
-    }
-
-    try {
-      setGuardandoCita(true);
-
-      await crearCita({
-        servicioId: servicioSeleccionado.id,
-        clienteId: cliente.id || null,
-        nombreCliente: cliente.nombre,
-        telefonoCliente: cliente.telefono,
-        fechaInicio: fechaSeleccionada,
-        horaInicio: horaSeleccionada,
-        horaFin: '',
-        duracionMinutos: servicioSeleccionado.duracion_minutos,
-      });
-
-      setPaso('exito');
-    } catch (err) {
-      console.error(err);
-      showToast('Ocurrió un error al guardar tu cita. Inténtalo nuevamente.', 'error');
-    } finally {
-      setGuardandoCita(false);
-    }
-  }
-  //-------------------------------
   function seleccionarCitaParaReagendar(cita: any) {
     setCitaAModificar(cita);
-    // Carga el servicio con duración completa (fallback a duracion_servicio de la cita)
-    setServicioSeleccionado({
-      ...cita.servicios,
-      duracion_minutos: cita.servicios?.duracion_minutos || cita.duracion_servicio || 30
-    });
-
-    // Si ya se tienen los datos del cliente guardados en la cita:
-    if (cita.cliente_nombre) {
-      setCliente({
-        id: cita.cliente_id || '',
-        nombre: cita.cliente_nombre || '',
-        telefono: cita.cliente_telefono || ''
-      });
-    }
-
-    setPaso('fecha'); // Salta directamente al selector de fecha validado
+    setServicioSeleccionado({ ...cita.servicios, duracion_minutos: cita.servicios?.duracion_minutos || cita.duracion_servicio || 30 });
+    if (cita.cliente_nombre) { setCliente({ id: cita.cliente_id || '', nombre: cita.cliente_nombre || '', telefono: cita.cliente_telefono || '' }); }
+    setPaso('fecha');
   }
 
   async function confirmarYGuardarReserva() {
-    if (!servicioSeleccionado || !fechaSeleccionada || !horaSeleccionada) {
-      showToast('Por favor, complete todos los campos.', 'error');
-      return;
-    }
-
+    if (!servicioSeleccionado || !fechaSeleccionada || !horaSeleccionada) { showToast('Complete todos los campos.', 'error'); return; }
     try {
       setGuardandoCita(true);
-
       if (citaAModificar) {
-        // 🔄 MODO REAGENDAR: Modifica la cita existente
-        await reagendarCita(
-          citaAModificar.id,
-          fechaSeleccionada,
-          horaSeleccionada,
-          servicioSeleccionado.duracion_minutos
-        );
+        await reagendarCita(citaAModificar.id, fechaSeleccionada, horaSeleccionada, servicioSeleccionado.duracion_minutos);
         showToast('Cita reagendada con éxito', 'success');
       } else {
-        // ➕ MODO NUEVA CITA: Crea una nueva cita
-        await crearCita({
-          servicioId: servicioSeleccionado.id,
-          clienteId: cliente.id || null,
-          nombreCliente: cliente.nombre,
-          telefonoCliente: cliente.telefono,
-          fechaInicio: fechaSeleccionada,
-          horaInicio: horaSeleccionada,
-          horaFin: '',
-          duracionMinutos: servicioSeleccionado.duracion_minutos,
-        });
+        await crearCita({ servicioId: servicioSeleccionado.id, clienteId: idCliente, nombreCliente: cliente.nombre, telefonoCliente: cliente.telefono, fechaInicio: fechaSeleccionada, horaInicio: horaSeleccionada, horaFin: '', duracionMinutos: servicioSeleccionado.duracion_minutos });
       }
-
       setPaso('exito');
-    } catch (err) {
-      console.error(err);
-      setErrorGuardado('Ocurrió un error al procesar tu cita. Inténtalo nuevamente.');
-      showToast('Ocurrió un error al procesar tu cita. Inténtalo nuevamente.', 'error');
-    } finally {
-      setGuardandoCita(false);
-    }
+    } catch (err) { console.error(err); setErrorGuardado('Ocurrió un error al procesar tu cita.'); showToast('Error al procesar tu cita.', 'error'); }
+    finally { setGuardandoCita(false); }
   }
-  //-------------------------------
-  //**************************************** */
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${colorPrimario}08, #0a0a0a)` }}>
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-3" style={{ borderColor: `${colorPrimario}40`, borderTopColor: 'transparent' }}></div>
+          <p className="text-sm text-slate-500">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const bg = `linear-gradient(180deg, ${colorPrimario}06 0%, #0a0a0a 30%)`;
+  const cssVars = { '--brand-primary': colorPrimario, '--brand-secondary': colorSecundario } as React.CSSProperties;
+
   return (
-    <main
-      className="min-h-screen bg-slate-950 text-slate-100 selection:bg-slate-900 selection:text-white"
-      style={{
-        '--brand-primary': colorPrimario,
-        '--brand-secondary': colorSecundario,
-      } as React.CSSProperties}
-    >
-      <div className="mx-auto max-w-xl px-4 py-8">
-        <header className="mb-6 text-center">
-          {empresa?.logo_url && (
-            <img
-              src={empresa.logo_url}
-              alt={empresa.nombre}
-              className="mx-auto mb-3 h-20 w-20 rounded-full object-cover border-3 border-[var(--brand-primary)]"
-            />
+    <main className="min-h-screen text-slate-100 selection:bg-white/10" style={{ background: bg, ...cssVars }}>
+      <div className="mx-auto max-w-lg px-4 py-6 sm:py-10">
+        <header className="text-center mb-8">
+          {empresa?.logo_url ? (
+            <img src={empresa.logo_url} alt={empresa.nombre} className="mx-auto mb-3 h-16 w-16 rounded-2xl object-cover shadow-lg ring-2 ring-white/5" />
+          ) : (
+            <div className="mx-auto mb-3 h-16 w-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg" style={{ background: `linear-gradient(135deg, ${colorPrimario}, ${colorSecundario})` }}>
+              {empresa?.nombre?.charAt(0) || 'A'}
+            </div>
           )}
-          <h1 className="text-3xl font-bold tracking-tight text-white">
-            {empresa?.nombre || 'Angel Nails'}
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">{empresa?.nombre || 'Angel Nails'}</h1>
+          <p className="text-xs text-slate-500 mt-1">Reserva tu cita en línea</p>
         </header>
 
-        {/*0 MENU */}
-        {paso === 'menu' && (
-          <MenuAgenda onSeleccionarOpcion={manejarSeleccionMenu} empresa={empresa} />
-        )}
+        {paso === 'menu' && <MenuAgenda onSeleccionarOpcion={manejarSeleccionMenu} empresa={empresa} />}
+        {paso === 'servicio' && <PasoServicio servicioSeleccionado={servicioSeleccionado} onSeleccionar={setServicioSeleccionado} onContinuar={() => setPaso('fecha')} formatearPrecio={formatearPrecio} onVolver={() => setPaso('menu')} />}
+        {paso === 'fecha' && servicioSeleccionado && <PasoFecha servicioNombre={servicioSeleccionado.nombre} duracionMinutos={servicioSeleccionado.duracion_minutos} fechaSeleccionada={fechaSeleccionada} hoyStr={hoyStr} onFechaChange={setFechaSeleccionada} onContinuar={continuarAHorarios} onVolver={() => citaAModificar ? setPaso('menu') : setPaso('servicio')} textoVolver={citaAModificar ? 'Volver al Menú' : 'Volver a Servicios'} />}
+        {paso === 'hora' && <PasoHora servicioNombre={servicioSeleccionado!.nombre} fechaSeleccionada={fechaSeleccionada} horasDisponibles={horasDisponibles} horaSeleccionada={horaSeleccionada} cargandoHoras={cargandoHoras} onHoraSeleccionar={setHoraSeleccionada} onContinuar={() => setPaso('datos')} onVolver={() => setPaso('fecha')} />}
+        {paso === 'datos' && <PasoDatosCliente cliente={cliente} onChangeInput={manejarCambioInput} onSubmit={(e) => { e.preventDefault(); setPaso('confirmar'); }} onVolver={() => setPaso('hora')} />}
+        {paso === 'confirmar' && servicioSeleccionado && <PasoResumen servicio={servicioSeleccionado} fecha={fechaSeleccionada} hora={horaSeleccionada} cliente={cliente} guardando={guardandoCita} errorGuardado={errorGuardado} onConfirmar={confirmarYGuardarReserva} onVolver={() => setPaso('datos')} formatearPrecio={formatearPrecio} />}
+        {paso === 'exito' && servicioSeleccionado && <PasoExito servicio={servicioSeleccionado} fecha={fechaSeleccionada} hora={horaSeleccionada} cliente={cliente} onNuevaReserva={() => { setPaso('menu'); setServicioSeleccionado(null); setFechaSeleccionada(''); setHoraSeleccionada(''); setCliente({ id: '', nombre: '', telefono: '' }); }} />}
+        {paso === 'servicios_precios' && <PasoServiciosPrecios onVolver={() => setPaso('menu')} />}
+        {paso === 'consultar_cita' && <PasoConsultarCita onVolver={() => setPaso('menu')} idCliente={idCliente} />}
+        {paso === 'cancelar_cita' && <PasoCancelarCita onVolver={() => setPaso('menu')} idCliente={idCliente} />}
+        {paso === 'modificar_cita' && <PasoModificarCita onVolver={() => setPaso('menu')} idCliente={idCliente} onSeleccionarCita={seleccionarCitaParaReagendar} />}
+        {paso === 'humano' && <PasoHumano onVolver={() => setPaso('menu')} empresaNombre={empresa?.nombre} />}
+        {paso === 'info_empresa' && <PasoInformacionEmpresa empresa={empresa} onVolver={() => setPaso('menu')} />}
+        {paso === 'en_construccion' && <EnDesarrollo onVolver={() => setPaso('menu')} />}
 
-        {/* 1 INICIO AGENDAR CITA */}
-        {paso === 'servicio' && (
-          <PasoServicio
-            servicioSeleccionado={servicioSeleccionado}
-            onSeleccionar={setServicioSeleccionado}
-            onContinuar={() => setPaso('fecha')}
-            formatearPrecio={formatearPrecio}
-            onVolver={() => setPaso('menu')}
-          />
-        )}
-
-        {paso === 'fecha' && servicioSeleccionado && (
-          <PasoFecha
-            servicioNombre={servicioSeleccionado.nombre}
-            duracionMinutos={servicioSeleccionado.duracion_minutos}
-            fechaSeleccionada={fechaSeleccionada}
-            hoyStr={hoyStr}
-            onFechaChange={setFechaSeleccionada}
-            onContinuar={continuarAHorarios}
-            onVolver={() => citaAModificar ? setPaso('menu') : setPaso('servicio')}
-            textoVolver={citaAModificar ? 'Volver al Menú Principal' : 'Volver a Servicios'}
-          />
-        )}
-
-        {paso === 'hora' && (
-          <PasoHora
-            servicioNombre={servicioSeleccionado.nombre}
-            fechaSeleccionada={fechaSeleccionada}
-            horasDisponibles={horasDisponibles}
-            horaSeleccionada={horaSeleccionada}
-            cargandoHoras={cargandoHoras}
-            onHoraSeleccionar={setHoraSeleccionada}
-            onContinuar={() => setPaso('datos')}
-            onVolver={() => setPaso('fecha')}
-          />
-        )}
-
-        {paso === 'datos' && (
-          <PasoDatosCliente
-            cliente={cliente}
-            onChangeInput={manejarCambioInput}
-            onSubmit={(e) => {
-              e.preventDefault();
-              setPaso('confirmar');
-            }}
-            onVolver={() => setPaso('hora')}
-          />
-        )}
-
-        {paso === 'confirmar' && servicioSeleccionado && (
-          <PasoResumen
-            servicio={servicioSeleccionado}
-            fecha={fechaSeleccionada}
-            hora={horaSeleccionada}
-            cliente={cliente}
-            guardando={guardandoCita}
-            errorGuardado={errorGuardado}
-            onConfirmar={confirmarYGuardarReserva}
-            onVolver={() => setPaso('datos')}
-            formatearPrecio={formatearPrecio}
-          />
-        )}
-
-        {paso === 'exito' && servicioSeleccionado && (
-          <PasoExito
-            servicio={servicioSeleccionado}
-            fecha={fechaSeleccionada}
-            hora={horaSeleccionada}
-            cliente={cliente}
-            onNuevaReserva={() => {
-              setPaso('menu');
-              setServicioSeleccionado(null);
-              setFechaSeleccionada('');
-              setHoraSeleccionada('');
-              setCliente({ id: '', nombre: '', telefono: '' });
-            }}
-          />
-        )}
-        {/* FIN AGENDAR CITA */}
-
-        {/* 2 SERVICIOS Y PRECIOS */}
-        {paso === 'servicios_precios' && (
-          <PasoServiciosPrecios onVolver={() => setPaso('menu')} />
-        )}
-
-        {/* 3 CONSULTAR CITA */}
-        {paso === 'consultar_cita' && (
-          <PasoConsultarCita onVolver={() => setPaso('menu')} idCliente={idCliente} />
-        )}
-
-        {/* 4 CANCELAR CITA */}
-        {paso === 'cancelar_cita' && (
-          <PasoCancelarCita onVolver={() => setPaso('menu')} idCliente={idCliente} />
-        )}
-
-        {/* 5 REAGENDAR CITA */}
-        {paso === 'modificar_cita' && (
-          <PasoModificarCita onVolver={() => setPaso('menu')} idCliente={idCliente} onSeleccionarCita={seleccionarCitaParaReagendar} />
-        )}
-
-        {/* 6 HUMANO */}
-        {paso === 'humano' && (
-          <PasoHumano onVolver={() => setPaso('menu')} empresaNombre={empresa?.nombre} />
-        )}
-
-        {/* 7 INF EMPRESA */}
-        {paso === 'info_empresa' && (
-          <PasoInformacionEmpresa empresa={empresa} onVolver={() => setPaso('menu')} />
-        )}
-
-        {/* 8 EN DESARROLLO */}
-        {paso === 'en_construccion' && (
-          <EnDesarrollo onVolver={() => setPaso('menu')} />
-        )}
+        <footer className="text-center mt-10 pt-6 border-t border-white/5">
+          <p className="text-[10px] text-slate-600">© {new Date().getFullYear()} {empresa?.nombre || 'Tu negocio'}</p>
+        </footer>
       </div>
     </main>
   );

@@ -60,7 +60,8 @@ export default function PasoCancelarCita({ onVolver, idCliente }: Props) {
             AGENDADO: "bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] border-[var(--brand-primary)]/20",
             PENDIENTE: "bg-amber-500/10 text-amber-400 border-amber-500/20",
             CANCELADO: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-            COMPLETADO: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+            CANCELADO_CLIENTE: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+            COMPLETADA: "bg-blue-500/10 text-blue-400 border-blue-500/20",
         };
 
         const currentStyle = statusStyles[estado?.toUpperCase()] || "bg-slate-500/10 text-slate-400 border-slate-500/20";
@@ -151,7 +152,7 @@ export default function PasoCancelarCita({ onVolver, idCliente }: Props) {
                         </div>
 
                         {/* Botón de Cancelar/Eliminar Cita */}
-                        {!["CANCELADO", "CANCELADO_INASISTENCIA", "COMPLETADA"].includes(cita.estado) && (
+                        {!["CANCELADO", "CANCELADO_CLIENTE", "CANCELADO_INASISTENCIA", "COMPLETADA"].includes(cita.estado) && (
                             <div className="pt-1 flex justify-end">
                                 <button
                                     onClick={() => setCitaAEliminar(cita)}

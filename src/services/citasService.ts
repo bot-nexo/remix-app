@@ -4,7 +4,7 @@ const USER_ID = import.meta.env.VITE_NEGOCIO_USER_ID;
 
 type CrearCitaPayload = {
     servicioId: string | null;
-    clienteId: string | null;
+    clienteId: string; // UUID del cliente (obligatorio, viene de n8n)
     nombreCliente: string | null;
     telefonoCliente: string | null;
     fechaInicio: string | null; // YYYY-MM-DD
@@ -35,7 +35,7 @@ export async function crearCita(payload: CrearCitaPayload) {
             {
                 user_id: USER_ID,
                 servicio_id: payload.servicioId,
-                cliente_id: payload.clienteId||null,
+                cliente_id: payload.clienteId,
                 cliente_nombre: payload.nombreCliente,
                 cliente_numero: payload.telefonoCliente,
                 fecha_inicio: payload.fechaInicio,

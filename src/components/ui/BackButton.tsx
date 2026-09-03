@@ -1,13 +1,11 @@
-
+import { ChevronLeft } from "lucide-react";
 
 export default function BackButton({ text, onClick }: { text: string, onClick: () => void }) {
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            className="mb-4 text-sm font-medium text-[var(--brand-primary)] hover:text-slate-300 transition"
-        >
-            ← {text}
+        <button type="button" onClick={onClick}
+            className="mb-5 flex items-center gap-1 text-sm font-medium text-slate-400 hover:text-white transition-colors">
+            <ChevronLeft size={16} />
+            {text}
         </button>
     );
 }

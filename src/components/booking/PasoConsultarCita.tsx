@@ -55,6 +55,7 @@ export default function PasoConsultarCita({ onVolver, idCliente }: Props) {
             AGENDADO: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
             PENDIENTE: "bg-amber-500/10 text-amber-400 border-amber-500/20",
             CANCELADO: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+            CANCELADO_CLIENTE: "bg-rose-500/10 text-rose-400 border-rose-500/20",
             CANCELADO_INASISTENCIA: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
             COMPLETADA: "bg-green-500/10 text-green-400 border-green-500/20",
         };

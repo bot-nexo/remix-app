@@ -62,7 +62,7 @@ export async function obtenerActivas(clienteId: string): Promise<Citas[] | null>
 export async function cancelarCita(idCita: string) {
     const { data, error } = await supabase
         .from('citas')
-        .update({ estado: 'CANCELADO' })
+        .update({ estado: 'CANCELADO_CLIENTE' })
         .eq('id', idCita).
         select();
 

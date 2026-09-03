@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Building2, Save, Upload } from 'lucide-react';
+import { Building2, Save, Upload, Camera } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 export default function Empresa() {
@@ -23,7 +23,6 @@ export default function Empresa() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  //************************************* */
   useEffect(() => {
     if (!user) return;
     fetchEmpresa();
@@ -31,17 +30,11 @@ export default function Empresa() {
 
   const fetchEmpresa = async () => {
     setLoading(true);
-    // Usamos .maybeSingle() para que no lance error si la empresa aún no existe
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('empresa')
       .select('*')
       .eq('user_id', user!.id)
       .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching empresa:', error);
-      showToast(error.message || 'Error al cargar empresa', 'error');
-    }
 
     if (data) {
       setEmpresaId(data.id);
@@ -64,209 +57,189 @@ export default function Empresa() {
     try {
       let currentLogoUrl = logoUrl;
 
-      // Subida de imagen
       if (file) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${user.id}/${Math.random()}.${fileExt}`;
-
         const { error: uploadError } = await supabase.storage
           .from('empresa')
           .upload(fileName, file, { upsert: true });
 
         if (uploadError) {
-          console.error('Error al subir imagen:', uploadError);
           showToast(uploadError.message || 'Error al subir imagen', 'error');
           return;
         }
 
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('empresa')
-          .getPublicUrl(fileName);
-
+        const { data: { publicUrl } } = supabase.storage.from('empresa').getPublicUrl(fileName);
         currentLogoUrl = publicUrl;
       }
 
       const payload = {
-        user_id: user.id,
-        nombre,
-        direccion,
-        horario,
-        politicas,
-        color_primario: colorPrimario,
-        color_secundario: colorSecundario,
+        user_id: user.id, nombre, direccion, horario, politicas,
+        color_primario: colorPrimario, color_secundario: colorSecundario,
         logo_url: currentLogoUrl
       };
 
       let error;
-
       if (empresaId) {
-        // UPDATE si ya existe el registro
-        const { error: updateError } = await supabase
-          .from('empresa')
-          .update(payload)
-          .eq('id', empresaId);
+        const { error: updateError } = await supabase.from('empresa').update(payload).eq('id', empresaId);
         error = updateError;
       } else {
-        // INSERT si es la primera vez y capturamos el id generado
-        const { data: createdData, error: insertError } = await supabase
-          .from('empresa')
-          .insert(payload)
-          .select()
-          .single();
-
-        if (createdData) {
-          setEmpresaId(createdData.id);
-        }
+        const { data: createdData, error: insertError } = await supabase.from('empresa').insert(payload).select().single();
+        if (createdData) setEmpresaId(createdData.id);
         error = insertError;
       }
 
       if (error) throw error;
-
-      showToast('Configuración de empresa guardada exitosamente', 'success');
+      showToast('Información guardada.', 'success');
       setLogoUrl(currentLogoUrl);
       setFile(null);
       refreshCompanyData();
-
     } catch (err: any) {
-      console.error(err);
-      showToast(err.message || 'Error al guardar configuración de empresa', 'error');
+      showToast(err.message || 'Error al guardar', 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
+    if (e.target.files && e.target.files[0]) setFile(e.target.files[0]);
   };
 
-  if (loading) return <div className="text-slate-500">Cargando datos...</div>;
+  if (loading) return <div className="p-8 text-center text-sm text-slate-400">Cargando...</div>;
 
-  //************************************* */
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-3xl mx-auto">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-          <Building2 className="w-8 h-8 text-brand-primary" />
-          Mi Empresa
-        </h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-2">
-          Personaliza la identidad, horarios y parámetros visuales de tu negocio
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Mi Empresa</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          Identidad, horarios y configuración visual de tu negocio
         </p>
       </div>
 
-      <div className="bg-white dark:bg-[#0f172a] rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-        <form onSubmit={handleSave} className="p-6 md:p-8 space-y-8">
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            <div className="w-full md:w-1/3 flex flex-col items-center gap-4">
-              <div className="relative w-32 h-32 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-700 overflow-hidden group flex items-center justify-center bg-slate-50 dark:bg-slate-800">
-                {file ? (
-                  <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover" />
-                ) : logoUrl ? (
-                  <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                ) : (
-                  <Upload className="w-8 h-8 text-slate-400" />
-                )}
-                <label className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center cursor-pointer transition-all">
-                  <span className="text-white text-xs font-medium">Cambiar</span>
+      <form onSubmit={handleSave} className="space-y-5">
+        {/* Logo + Info Básica */}
+        <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800/60 p-5">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Información General</h2>
+
+          <div className="flex flex-col sm:flex-row gap-6 items-start">
+            {/* Logo */}
+            <div className="flex flex-col items-center gap-3 shrink-0">
+              <div className="relative group">
+                <div className="w-28 h-28 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 overflow-hidden bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center">
+                  {file ? (
+                    <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover" />
+                  ) : logoUrl ? (
+                    <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <Camera className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                  )}
+                </div>
+                <label className="absolute inset-0 rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                  <span className="text-white text-xs font-medium bg-black/60 px-3 py-1.5 rounded-lg">Cambiar</span>
                   <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                 </label>
               </div>
-              <div className="text-center">
-                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Logo de la Empresa</p>
-                <p className="text-xs text-slate-500 mt-1">JPG / PNG.</p>
-              </div>
+              <p className="text-[10px] text-slate-400 text-center">Logo · JPG/PNG</p>
             </div>
 
-            <div className="w-full md:w-2/3 space-y-5">
+            {/* Campos */}
+            <div className="flex-1 space-y-3 w-full">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nombre del Negocio</label>
+                <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Nombre del Negocio</label>
                 <input
-                  type="text"
-                  required
-                  value={nombre}
+                  type="text" required value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Dirección</label>
+                <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Dirección</label>
                 <input
-                  type="text"
-                  required
-                  value={direccion}
+                  type="text" required value={direccion}
                   onChange={(e) => setDireccion(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Horario de Atención</label>
+                <input
+                  type="text" value={horario}
+                  onChange={(e) => setHorario(e.target.value)}
+                  placeholder="Ej: Lunes a Sábado 9am - 7pm"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all"
                 />
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Colores */}
+        <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800/60 p-5">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Identidad Visual</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Horario de Atención</label>
-              <textarea
-                rows={1}
-                value={horario}
-                onChange={(e) => setHorario(e.target.value)}
-                placeholder="Ej: Lunes a Sábado 9am - 7pm"
-                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all"
-              />
+              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Color Primario</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color" value={colorPrimario}
+                  onChange={(e) => setColorPrimario(e.target.value)}
+                  className="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer p-0.5"
+                />
+                <input
+                  type="text" value={colorPrimario}
+                  onChange={(e) => setColorPrimario(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm font-mono border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white"
+                />
+                <div className="w-10 h-10 rounded-xl shadow-inner" style={{ backgroundColor: colorPrimario }}></div>
+              </div>
             </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Color Primario</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={colorPrimario}
-                    onChange={(e) => setColorPrimario(e.target.value)}
-                    className="h-10 w-10 p-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={colorPrimario}
-                    onChange={(e) => setColorPrimario(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white text-sm"
-                  />
-                </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Color Secundario</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color" value={colorSecundario}
+                  onChange={(e) => setColorSecundario(e.target.value)}
+                  className="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer p-0.5"
+                />
+                <input
+                  type="text" value={colorSecundario}
+                  onChange={(e) => setColorSecundario(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm font-mono border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white"
+                />
+                <div className="w-10 h-10 rounded-xl shadow-inner" style={{ backgroundColor: colorSecundario }}></div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 
-            mb-1">Políticas del Establecimiento <span className="text-xs text-slate-500 dark:text-slate-400">(Reglas de reserva, cancelaciones y uso del servicio.)</span></label>
-            <textarea
-              rows={5}
-              value={politicas}
-              onChange={(e) => setPoliticas(e.target.value)}
-              placeholder="Ej: Cancelaciones con 24h de anticipación..."
-              className="w-full px-4 py-3 border border-slate-300 dark:border-slate-700 
-              rounded-xl bg-transparent dark:text-white focus:ring-2 
-              focus:ring-brand-primary focus:border-transparent outline-none transition-all 
-              resize-y"
-            />
-            <p className="text-xs text-brand-primary dark:text-brand-primary">
-              💡 <strong>Importante:</strong> Separa cada norma con  punto y coma <strong>( ; )</strong>, y escribe precios sin puntos ni comas<strong> (ej: $4000)</strong>.
-            </p>
-          </div>
+        {/* Políticas */}
+        <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800/60 p-5">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">Políticas del Negocio</h2>
+          <p className="text-xs text-slate-400 mb-3">Reglas de reserva, cancelaciones y uso del servicio.</p>
+          <textarea
+            rows={4}
+            value={politicas}
+            onChange={(e) => setPoliticas(e.target.value)}
+            placeholder="Ej: Cancelaciones con 24h de anticipación..."
+            className="w-full px-3 py-2.5 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all resize-y"
+          />
+          <p className="text-[11px] text-brand-primary mt-2">
+            💡 Separa cada norma con punto y coma <strong>( ; )</strong>, precios sin puntos ni comas <strong>(ej: $4000)</strong>.
+          </p>
+        </div>
 
-          <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex items-center justify-center gap-2 px-8 py-3 bg-brand-primary hover:bg-brand-secondary text-white rounded-xl font-medium transition-all shadow-sm shadow-brand-primary/20 disabled:opacity-50"
-            >
-              <Save size={20} />
-              {saving ? 'Guardando...' : 'Guardar Cambios'}
-            </button>
-          </div>
-        </form>
-      </div>
+        {/* Guardar */}
+        <div className="flex justify-end">
+          <button
+            type="submit" disabled={saving}
+            className="flex items-center gap-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-secondary text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-brand-primary/15 disabled:opacity-50"
+          >
+            <Save size={16} />
+            {saving ? 'Guardando...' : 'Guardar Cambios'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

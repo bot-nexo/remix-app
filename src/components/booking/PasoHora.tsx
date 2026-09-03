@@ -1,4 +1,5 @@
 import BackButton from "../ui/BackButton";
+import { Clock } from "lucide-react";
 
 interface Props {
   fechaSeleccionada: string;
@@ -11,56 +12,42 @@ interface Props {
   onVolver: () => void;
 }
 
-export default function PasoHora({
-  fechaSeleccionada,
-  horasDisponibles,
-  horaSeleccionada,
-  cargandoHoras,
-  servicioNombre,
-  onHoraSeleccionar,
-  onContinuar,
-  onVolver,
-}: Props) {
+export default function PasoHora({ fechaSeleccionada, horasDisponibles, horaSeleccionada, servicioNombre, cargandoHoras, onHoraSeleccionar, onContinuar, onVolver }: Props) {
+  const colorPrimario = 'var(--brand-primary)';
   return (
     <section>
-      <BackButton
-        text="Volver a Fecha"
-        onClick={onVolver}
-      />
-
-      <div className="rounded-2xl bg-slate-800/80 border border-slate-700/60 p-6 shadow-xl backdrop-blur-sm">
-        <h2 className="text-xl font-semibold text-slate-100">Selecciona la hora</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          Servicio: <span className="font-medium text-[var(--brand-primary)]">{servicioNombre}</span>
-          {' -- '}
-          Fecha: <span className="font-medium text-[var(--brand-primary)]">{fechaSeleccionada}</span>
+      <BackButton text="Volver a Fecha" onClick={onVolver} />
+      <div className="rounded-2xl border border-white/5 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <h2 className="text-lg font-bold text-white">Selecciona la hora</h2>
+        <p className="mt-1 text-xs text-slate-400">
+          <span className="font-medium" style={{ color: colorPrimario }}>{servicioNombre}</span> · {fechaSeleccionada}
         </p>
 
         {cargandoHoras && (
-          <p className="mt-6 text-center text-[var(--brand-primary)]">Consultando disponibilidad...</p>
+          <div className="mt-8 text-center">
+            <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-3" style={{ borderColor: `${colorPrimario}40`, borderTopColor: 'transparent' }}></div>
+            <p className="text-sm text-slate-500">Consultando disponibilidad...</p>
+          </div>
         )}
 
         {!cargandoHoras && horasDisponibles.length === 0 && (
-          <p className="mt-6 text-center text-[var(--brand-primary)]">
-            No hay horarios disponibles para la fecha seleccionada.
-          </p>
+          <div className="mt-8 text-center py-6">
+            <Clock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+            <p className="text-sm text-slate-400">No hay horarios disponibles para esta fecha.</p>
+            <p className="text-[11px] text-slate-600 mt-1">Intenta con otra fecha.</p>
+          </div>
         )}
 
         {!cargandoHoras && horasDisponibles.length > 0 && (
-          <div className="mt-6 grid grid-cols-3 gap-3">
+          <div className="mt-5 grid grid-cols-3 gap-2">
             {horasDisponibles.map((hora) => (
-              <button
-                key={hora}
-                type="button"
-                onClick={() => onHoraSeleccionar(hora)}
-                className={`
-                  rounded-xl p-3 text-center text-sm font-bold transition duration-150
-                  ${horaSeleccionada === hora
-                    ? 'bg-[var(--brand-primary)] text-slate-900'
-                    : 'border border-slate-700/70 bg-slate-900/60 text-slate-100 hover:border-[var(--brand-primary)] hover:bg-slate-800/70'
-                  }
-                `}
-              >
+              <button key={hora} type="button" onClick={() => onHoraSeleccionar(hora)}
+                className="rounded-xl p-3 text-center text-sm font-bold transition-all duration-150 active:scale-95"
+                style={{
+                  background: horaSeleccionada === hora ? colorPrimario : 'rgba(255,255,255,0.03)',
+                  color: horaSeleccionada === hora ? 'white' : 'rgb(203,213,225)',
+                  border: `1px solid ${horaSeleccionada === hora ? colorPrimario : 'rgba(255,255,255,0.06)'}`,
+                }}>
                 {hora}
               </button>
             ))}
@@ -68,12 +55,9 @@ export default function PasoHora({
         )}
 
         {horaSeleccionada && (
-          <button
-            type="button"
-            onClick={onContinuar}
-            className="mt-6 w-full rounded-xl bg-[var(--brand-primary)] px-4 py-3 font-semibold 
-            text-slate-100 transition hover:opacity-90 active:scale-[0.99]"
-          >
+          <button type="button" onClick={onContinuar}
+            className="mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition-all active:scale-[0.98] hover:brightness-110"
+            style={{ background: colorPrimario }}>
             Continuar a tus datos
           </button>
         )}

@@ -5,6 +5,7 @@ import { DatosCliente, EmpresaConfig, Paso, Servicio } from '../types/types';
 import { obtenerEmpresaConfig } from '../services/empresaService';
 import { useToast } from '../contexts/ToastContext';
 import { formatearPrecio } from '../functions';
+import { useAuth } from '../contexts/AuthContext';
 
 import MenuAgenda from '../components/booking/MenuAgenda';
 import PasoServicio from '../components/booking/PasoServicio';
@@ -29,6 +30,7 @@ export default function BookingPage() {
   // console.log('ID del cliente:', clienteId);
 
   const { showToast } = useToast();
+  const { user, signOut } = useAuth();
   const [empresa, setEmpresa] = useState<EmpresaConfig | null>(null);
   const idCliente = clienteId || '';
 
@@ -62,8 +64,12 @@ export default function BookingPage() {
 
   //********************************** */
   useEffect(() => {
+    // Si hay un usuario logueado (admin), cerrar sesión automáticamente al acceder a /reservar
+    if (user) {
+      signOut();
+    }
     cargarDatosIniciales();
-  }, []);
+  }, [user]);
 
   async function cargarDatosIniciales() {
     try {

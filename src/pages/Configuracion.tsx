@@ -9,7 +9,7 @@ export default function Configuracion() {
   const { user } = useAuth();
   const [botActive, setBotActive] = useState(false);
   const [tolerancia, setTolerancia] = useState('15');
-  const [instrucciones, setInstrucciones] = useState('');
+
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,7 +31,7 @@ export default function Configuracion() {
       data.forEach((item) => {
         if (item.clave === 'bot_activo') setBotActive(item.valor === 'true');
         if (item.clave === 'bot_tolerancia') setTolerancia(item.valor);
-        if (item.clave === 'bot_instrucciones') setInstrucciones(item.valor);
+
       });
     }
     setLoading(false);
@@ -44,7 +44,7 @@ export default function Configuracion() {
     const configs = [
       { user_id: user.id, clave: 'bot_activo', valor: botActive.toString() },
       { user_id: user.id, clave: 'bot_tolerancia', valor: tolerancia },
-      { user_id: user.id, clave: 'bot_instrucciones', valor: instrucciones }
+
     ];
 
     try {
@@ -70,10 +70,10 @@ export default function Configuracion() {
       <div>
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
           <Settings className="w-8 h-8 text-brand-primary" />
-          Configuración del Bot
+          Configuración
         </h1>
         <p className="text-slate-600 dark:text-slate-400 mt-2">
-          Ajusta el comportamiento general y las instrucciones directas para tu asistente virtual de WhatsApp
+          Ajusta el comportamiento general de tu asistente virtual
         </p>
       </div>
 
@@ -116,19 +116,7 @@ export default function Configuracion() {
             <p className="text-xs text-slate-500 mt-2">Tiempo máximo que esperará el cliente antes de cancelar la cita por retraso.</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Indicaciones Especiales para la IA
-            </label>
-            <textarea
-              rows={6}
-              value={instrucciones}
-              onChange={(e) => setInstrucciones(e.target.value)}
-              placeholder="Ej: Recuerda mencionar que hoy tenemos promoción 2x1 en cortes de barba..."
-              className="w-full px-4 py-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-transparent dark:text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all resize-none"
-            />
-            <p className="text-xs text-slate-500 mt-2">Instrucciones que el bot utilizará como contexto al conversar con los clientes.</p>
-          </div>
+
 
           <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800">
             <button

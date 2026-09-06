@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Settings, Bot, Save } from 'lucide-react';
+import { Bot, Save } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 export default function Configuracion() {
@@ -9,10 +9,14 @@ export default function Configuracion() {
   const { user } = useAuth();
   const [botActive, setBotActive] = useState(false);
   const [tolerancia, setTolerancia] = useState('15');
-  const [metaVentas, setMetaVentas] = useState('5000000');
+  const [metaVentas, setMetaVentas] = useState('1000000');
+  const [metaVentasActual, setMetaVentasActual] = useState('0');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const formatCurrency = (v: number) => `$${Number(v).toLocaleString('es-CO')}`;
+
+  //******************************** */
   useEffect(() => {
     if (!user) return;
     fetchConfig();
@@ -29,6 +33,7 @@ export default function Configuracion() {
         if (item.clave === 'bot_activo') setBotActive(item.valor === 'true');
         if (item.clave === 'bot_tolerancia') setTolerancia(item.valor);
         if (item.clave === 'meta_ventas_mes') setMetaVentas(item.valor);
+        if (item.clave === 'meta_ventas_mes') setMetaVentasActual(item.valor);
       });
     }
     setLoading(false);
@@ -46,6 +51,7 @@ export default function Configuracion() {
     try {
       const { error } = await supabase.from('configuracion').upsert(configs, { onConflict: 'user_id, clave' });
       if (error) throw error;
+      setMetaVentasActual(metaVentas);
       showToast('Configuracion guardada.', 'success');
     } catch (err: any) {
       showToast('Error al guardar.', 'error');
@@ -56,6 +62,7 @@ export default function Configuracion() {
 
   if (loading) return <div className="p-8 text-center text-sm text-slate-400">Cargando...</div>;
 
+  //********************************** */
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
@@ -103,7 +110,12 @@ export default function Configuracion() {
 
         {/* Meta de Ventas */}
         <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800/60 p-5">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Meta de Ventas del Mes</h3>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Meta de Ventas del mes</h3>
+            <span className="text-sm font-medium text-brand-primary ml-5 pl-5">
+              (Meta actual: {formatCurrency(parseFloat(metaVentasActual) || 0)})
+            </span>
+          </div>
           <div className="flex items-end gap-3">
             <div className="w-48">
               <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Monto en pesos</label>

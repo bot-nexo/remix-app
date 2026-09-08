@@ -30,45 +30,52 @@ export interface EvolutionInstance {
   owner?: string;
   number?: string;
   profileName?: string;
+  createdAt?: string;
 }
 
 export interface QRCodeResponse {
-  qrcode: {
-    base64: string;   // data:image/png;base64,...
-    count: number;
-  };
-  instance: {
+  base64?: string;
+  code?: string;
+  pairingCode?: string;
+  instance?: {
     instanceName: string;
-    status: string;   // "connecting" | "open" | "close"
+    state: string;
   };
 }
 
 export interface ConnectionState {
   instance: {
     instanceName: string;
-    state: 'open' | 'connecting' | 'close';
+    state: string;
   };
 }
 
 export interface InstanceInfo {
-  id: string;
-  name: string;
+  instanceName: string;
   connectionStatus: string;
+  id?: string;
+  name?: string;
   ownerJid?: string;
   number?: string;
   profileName?: string;
   integration?: string;
 }
 
+export interface FetchInstancesResponse {
+  instances: InstanceInfo[];
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function headers(instanceToken?: string): Record<string, string> {
-  const h: Record<string, string> = {
+/**
+ * Todas las operaciones de instancia (connect, logout, delete, fetchInstances, etc.)
+ * usan la API Key global. El token de instancia (hash) es solo para envío de mensajes.
+ */
+function globalHeaders(): Record<string, string> {
+  return {
     'Content-Type': 'application/json',
+    'apikey': EVOLUTION_KEY,
   };
-  // Si se pasa el token de la instancia se usa, si no, la API key global
-  h['apikey'] = instanceToken || EVOLUTION_KEY;
-  return h;
 }
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -104,7 +111,7 @@ export function getInstanceName(): string {
 export async function createInstance(): Promise<{ instance: EvolutionInstance; token: string }> {
   const data = await apiFetch<any>('/instance/create', {
     method: 'POST',
-    headers: headers(),
+    headers: globalHeaders(),
     body: JSON.stringify({
       instanceName: INSTANCE_NAME,
       qrcode: true,
@@ -120,11 +127,12 @@ export async function createInstance(): Promise<{ instance: EvolutionInstance; t
 /**
  * Obtener el QR code para conectar WhatsApp.
  * Retorna el QR en base64 y el estado de la instancia.
+ * NOTA: Este endpoint SIEMPRE usa la API Key global.
  */
-export async function getQRCode(instanceToken?: string): Promise<QRCodeResponse> {
+export async function getQRCode(): Promise<QRCodeResponse> {
   const data = await apiFetch<QRCodeResponse>(
     `/instance/connect/${INSTANCE_NAME}`,
-    { method: 'GET', headers: headers(instanceToken) }
+    { method: 'GET', headers: globalHeaders() }
   );
   return data;
 }
@@ -132,32 +140,32 @@ export async function getQRCode(instanceToken?: string): Promise<QRCodeResponse>
 /**
  * Verificar el estado de conexión de la instancia.
  */
-export async function getConnectionState(instanceToken?: string): Promise<ConnectionState> {
+export async function getConnectionState(): Promise<ConnectionState> {
   const data = await apiFetch<ConnectionState>(
     `/instance/connectionState/${INSTANCE_NAME}`,
-    { method: 'GET', headers: headers(instanceToken) }
+    { method: 'GET', headers: globalHeaders() }
   );
   return data;
 }
 
 /**
- * Obtener información de la instancia.
+ * Obtener información de las instancias.
  */
-export async function fetchInstances(instanceToken?: string): Promise<InstanceInfo[]> {
-  const data = await apiFetch<InstanceInfo[]>(
+export async function fetchInstances(): Promise<InstanceInfo[]> {
+  const data = await apiFetch<FetchInstancesResponse>(
     `/instance/fetchInstances?instanceName=${INSTANCE_NAME}`,
-    { method: 'GET', headers: headers(instanceToken) }
+    { method: 'GET', headers: globalHeaders() }
   );
-  return data;
+  return data.instances || [];
 }
 
 /**
  * Reiniciar la instancia (sin perder la sesión).
  */
-export async function restartInstance(instanceToken?: string): Promise<any> {
+export async function restartInstance(): Promise<any> {
   return apiFetch(`/instance/restart/${INSTANCE_NAME}`, {
     method: 'PUT',
-    headers: headers(instanceToken),
+    headers: globalHeaders(),
   });
 }
 
@@ -165,19 +173,19 @@ export async function restartInstance(instanceToken?: string): Promise<any> {
  * Cerrar sesión de WhatsApp (desconectar).
  * Mantiene la instancia pero elimina la sesión.
  */
-export async function logoutInstance(instanceToken?: string): Promise<any> {
+export async function logoutInstance(): Promise<any> {
   return apiFetch(`/instance/logout/${INSTANCE_NAME}`, {
     method: 'DELETE',
-    headers: headers(instanceToken),
+    headers: globalHeaders(),
   });
 }
 
 /**
  * Eliminar la instancia completamente.
  */
-export async function deleteInstance(instanceToken?: string): Promise<any> {
+export async function deleteInstance(): Promise<any> {
   return apiFetch(`/instance/delete/${INSTANCE_NAME}`, {
     method: 'DELETE',
-    headers: headers(instanceToken),
+    headers: globalHeaders(),
   });
 }

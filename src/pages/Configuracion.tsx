@@ -10,9 +10,23 @@ import {
   getConnectionState,
   logoutInstance,
   fetchInstances,
+  type InstanceInfo,
 } from '../services/evolutionService';
 
 type ConnectionStatus = 'checking' | 'connected' | 'disconnected' | 'connecting' | 'error';
+
+const WA_STATUS_MAP: Record<string, ConnectionStatus> = {
+  CONNECTED: 'connected',
+  OPEN: 'connected',
+  DISCONNECTED: 'disconnected',
+  CLOSE: 'disconnected',
+  CONNECTING: 'connecting',
+  QR_CODE: 'connecting',
+};
+
+function mapWAStatus(status: string): ConnectionStatus {
+  return WA_STATUS_MAP[status.toUpperCase()] || 'disconnected';
+}
 
 export default function Configuracion() {
   const { showToast } = useToast();
@@ -28,9 +42,13 @@ export default function Configuracion() {
   const [waStatus, setWaStatus] = useState<ConnectionStatus>('checking');
   const [qrBase64, setQrBase64] = useState<string | null>(null);
   const [waLoading, setWaLoading] = useState(false);
-  const [instanceToken, setInstanceToken] = useState<string | null>(null);
-  const [instanceInfo, setInstanceInfo] = useState<any>(null);
+  const [instanceInfo, setInstanceInfo] = useState<InstanceInfo | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // QR auto-refresh (expira en ~60s)
+  const QR_EXPIRY_SECONDS = 55; // un poco menos de 60s para regenerar antes de que expire
+  const [qrCountdown, setQrCountdown] = useState(0);
+  const qrTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const formatCurrency = (v: number) => `$${Number(v).toLocaleString('es-CO')}`;
 
@@ -49,6 +67,7 @@ export default function Configuracion() {
     checkWhatsAppStatus();
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
+      if (qrTimerRef.current) clearInterval(qrTimerRef.current);
     }
   }, []);
 
@@ -99,17 +118,49 @@ export default function Configuracion() {
     }
   };
 
+  const stopQRCountdown = () => {
+    if (qrTimerRef.current) {
+      clearInterval(qrTimerRef.current);
+      qrTimerRef.current = null;
+    }
+    setQrCountdown(0);
+  };
+
+  /**
+   * Inicia countdown de 55s. Al llegar a 0, regenera el QR automáticamente.
+   */
+  const startQRCountdown = () => {
+    stopQRCountdown();
+    setQrCountdown(QR_EXPIRY_SECONDS);
+    qrTimerRef.current = setInterval(() => {
+      setQrCountdown((prev) => {
+        if (prev <= 1) {
+          // QR por expirar → regenerar
+          clearInterval(qrTimerRef.current!);
+          qrTimerRef.current = null;
+          showToast('QR expiró, generando nuevo...', 'warning');
+          // Usamos setTimeout para no bloquear el setState
+          setTimeout(() => requestQR(), 0);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
   const startPolling = () => {
     stopPolling();
     pollingRef.current = setInterval(async () => {
       try {
-        const state = await getConnectionState(instanceToken || undefined);
-        if (state.instance.state === 'open') {
+        const state = await getConnectionState();
+        const status = mapWAStatus(state.instance.state);
+        if (status === 'connected') {
           setWaStatus('connected');
           setQrBase64(null);
           stopPolling();
+          stopQRCountdown();
           showToast('¡WhatsApp conectado exitosamente!', 'success');
-        } else if (state.instance.state === 'connecting') {
+        } else if (status === 'connecting') {
           setWaStatus('connecting');
         }
       } catch {
@@ -125,11 +176,11 @@ export default function Configuracion() {
       if (instances.length > 0) {
         const inst = instances[0];
         setInstanceInfo(inst);
-        if (inst.connectionStatus === 'open') {
+        const status = mapWAStatus(inst.connectionStatus);
+        if (status === 'connected') {
           setWaStatus('connected');
           setQrBase64(null);
         } else {
-          // Instance exists but disconnected — fetch QR
           setWaStatus('disconnected');
           await requestQR();
         }
@@ -143,25 +194,35 @@ export default function Configuracion() {
 
   const requestQR = async () => {
     setWaLoading(true);
+    stopQRCountdown();
     try {
-      const qr = await getQRCode(instanceToken || undefined);
-      if (qr.qrcode?.base64) {
-        setQrBase64(qr.qrcode.base64);
+      const qr = await getQRCode();
+      // Evolution API v2 returns base64 at root level (with data:image prefix)
+      if (qr.base64) {
+        setQrBase64(qr.base64);
         setWaStatus('connecting');
         startPolling();
+        startQRCountdown();
+      } else if (qr.instance?.state === 'open') {
+        // Already connected
+        setWaStatus('connected');
+        setQrBase64(null);
       }
     } catch (err: any) {
       // If instance doesn't exist, create it first
       if (err.message?.includes('404') || err.message?.includes('not found')) {
         try {
-          const { token } = await createInstance();
-          setInstanceToken(token);
-          // Now request QR with the new token
-          const qr = await getQRCode(token);
-          if (qr.qrcode?.base64) {
-            setQrBase64(qr.qrcode.base64);
+          await createInstance();
+          // Now request QR with the global key
+          const qr = await getQRCode();
+          if (qr.base64) {
+            setQrBase64(qr.base64);
             setWaStatus('connecting');
             startPolling();
+            startQRCountdown();
+          } else if (qr.instance?.state === 'open') {
+            setWaStatus('connected');
+            setQrBase64(null);
           }
         } catch (createErr: any) {
           showToast('Error al crear instancia: ' + createErr.message, 'error');
@@ -179,8 +240,10 @@ export default function Configuracion() {
   const handleDisconnect = async () => {
     if (!confirm('¿Desconectar WhatsApp? Se perderá la sesión actual.')) return;
     setWaLoading(true);
+    stopPolling();
+    stopQRCountdown();
     try {
-      await logoutInstance(instanceToken || undefined);
+      await logoutInstance();
       setQrBase64(null);
       setWaStatus('disconnected');
       showToast('WhatsApp desconectado.', 'success');
@@ -193,6 +256,7 @@ export default function Configuracion() {
 
   const handleReconnect = async () => {
     stopPolling();
+    stopQRCountdown();
     setQrBase64(null);
     await requestQR();
   };
@@ -259,7 +323,7 @@ export default function Configuracion() {
               <h3 className="text-sm font-semibold text-slate-900 dark:text-white">WhatsApp</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {waStatus === 'connected' && '✅ Conectado y listo para recibir mensajes'}
-                {waStatus === 'connecting' && '⏳ Esperando escaneo del código QR...'}
+                {waStatus === 'connecting' && '⏳ Esperando escaneo del código QR... (se regenera automáticamente si expira)'}
                 {waStatus === 'disconnected' && 'Desconectado — conecta tu WhatsApp escaneando el QR'}
                 {waStatus === 'checking' && 'Verificando estado de conexión...'}
                 {waStatus === 'error' && '⚠️ Configura las variables de entorno de Evolution API'}
@@ -299,6 +363,19 @@ export default function Configuracion() {
                 <Loader2 size={14} className="animate-spin" />
                 <span>Escaneando...</span>
               </div>
+              {qrCountdown > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="w-24 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-brand-primary rounded-full transition-all duration-1000"
+                      style={{ width: `${(qrCountdown / QR_EXPIRY_SECONDS) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
+                    {qrCountdown}s
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

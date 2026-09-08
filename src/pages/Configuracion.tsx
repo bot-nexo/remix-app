@@ -263,7 +263,7 @@ export default function Configuracion() {
 
   if (loading) return <div className="p-8 text-center text-sm text-slate-400">Cargando...</div>;
 
-  //********************************** */
+  //*************************************** */
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
@@ -312,11 +312,10 @@ export default function Configuracion() {
         {/* ── Conexión WhatsApp (QR) ───────────────────────────────────── */}
         <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800/60 p-5">
           <div className="flex items-center gap-4 mb-4">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              waStatus === 'connected'
-                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
-                : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
-            }`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${waStatus === 'connected'
+              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
+              : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
+              }`}>
               <MessageCircle size={20} />
             </div>
             <div>

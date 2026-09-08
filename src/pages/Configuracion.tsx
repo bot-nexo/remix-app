@@ -1,8 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Bot, Save } from 'lucide-react';
+import { Bot, Save, MessageCircle, Link2, Unlink, RefreshCw, Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import {
+  isEvolutionConfigured,
+  createInstance,
+  getQRCode,
+  getConnectionState,
+  logoutInstance,
+  fetchInstances,
+} from '../services/evolutionService';
+
+type ConnectionStatus = 'checking' | 'connected' | 'disconnected' | 'connecting' | 'error';
 
 export default function Configuracion() {
   const { showToast } = useToast();
@@ -14,13 +24,33 @@ export default function Configuracion() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // WhatsApp QR state
+  const [waStatus, setWaStatus] = useState<ConnectionStatus>('checking');
+  const [qrBase64, setQrBase64] = useState<string | null>(null);
+  const [waLoading, setWaLoading] = useState(false);
+  const [instanceToken, setInstanceToken] = useState<string | null>(null);
+  const [instanceInfo, setInstanceInfo] = useState<any>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const formatCurrency = (v: number) => `$${Number(v).toLocaleString('es-CO')}`;
 
-  //******************************** */
+  // ─── Config data ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     fetchConfig();
   }, [user]);
+
+  // ─── WhatsApp connection check on mount ─────────────────────────────────
+  useEffect(() => {
+    if (!isEvolutionConfigured()) {
+      setWaStatus('error');
+      return;
+    }
+    checkWhatsAppStatus();
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    }
+  }, []);
 
   const fetchConfig = async () => {
     setLoading(true);
@@ -58,6 +88,113 @@ export default function Configuracion() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ─── WhatsApp functions ─────────────────────────────────────────────────
+
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+
+  const startPolling = () => {
+    stopPolling();
+    pollingRef.current = setInterval(async () => {
+      try {
+        const state = await getConnectionState(instanceToken || undefined);
+        if (state.instance.state === 'open') {
+          setWaStatus('connected');
+          setQrBase64(null);
+          stopPolling();
+          showToast('¡WhatsApp conectado exitosamente!', 'success');
+        } else if (state.instance.state === 'connecting') {
+          setWaStatus('connecting');
+        }
+      } catch {
+        // silently retry
+      }
+    }, 4000);
+  };
+
+  const checkWhatsAppStatus = async () => {
+    setWaStatus('checking');
+    try {
+      const instances = await fetchInstances();
+      if (instances.length > 0) {
+        const inst = instances[0];
+        setInstanceInfo(inst);
+        if (inst.connectionStatus === 'open') {
+          setWaStatus('connected');
+          setQrBase64(null);
+        } else {
+          // Instance exists but disconnected — fetch QR
+          setWaStatus('disconnected');
+          await requestQR();
+        }
+      } else {
+        setWaStatus('disconnected');
+      }
+    } catch {
+      setWaStatus('disconnected');
+    }
+  };
+
+  const requestQR = async () => {
+    setWaLoading(true);
+    try {
+      const qr = await getQRCode(instanceToken || undefined);
+      if (qr.qrcode?.base64) {
+        setQrBase64(qr.qrcode.base64);
+        setWaStatus('connecting');
+        startPolling();
+      }
+    } catch (err: any) {
+      // If instance doesn't exist, create it first
+      if (err.message?.includes('404') || err.message?.includes('not found')) {
+        try {
+          const { token } = await createInstance();
+          setInstanceToken(token);
+          // Now request QR with the new token
+          const qr = await getQRCode(token);
+          if (qr.qrcode?.base64) {
+            setQrBase64(qr.qrcode.base64);
+            setWaStatus('connecting');
+            startPolling();
+          }
+        } catch (createErr: any) {
+          showToast('Error al crear instancia: ' + createErr.message, 'error');
+          setWaStatus('error');
+        }
+      } else {
+        showToast('Error al obtener QR: ' + err.message, 'error');
+        setWaStatus('error');
+      }
+    } finally {
+      setWaLoading(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!confirm('¿Desconectar WhatsApp? Se perderá la sesión actual.')) return;
+    setWaLoading(true);
+    try {
+      await logoutInstance(instanceToken || undefined);
+      setQrBase64(null);
+      setWaStatus('disconnected');
+      showToast('WhatsApp desconectado.', 'success');
+    } catch (err: any) {
+      showToast('Error al desconectar: ' + err.message, 'error');
+    } finally {
+      setWaLoading(false);
+    }
+  };
+
+  const handleReconnect = async () => {
+    stopPolling();
+    setQrBase64(null);
+    await requestQR();
   };
 
   if (loading) return <div className="p-8 text-center text-sm text-slate-400">Cargando...</div>;
@@ -106,6 +243,119 @@ export default function Configuracion() {
             </div>
             <p className="text-xs text-slate-400 dark:text-slate-500 pb-2.5">Tiempo que esperara al cliente antes de marcar inasistencia.</p>
           </div>
+        </div>
+
+        {/* ── Conexión WhatsApp (QR) ───────────────────────────────────── */}
+        <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800/60 p-5">
+          <div className="flex items-center gap-4 mb-4">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              waStatus === 'connected'
+                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
+                : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
+            }`}>
+              <MessageCircle size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">WhatsApp</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {waStatus === 'connected' && '✅ Conectado y listo para recibir mensajes'}
+                {waStatus === 'connecting' && '⏳ Esperando escaneo del código QR...'}
+                {waStatus === 'disconnected' && 'Desconectado — conecta tu WhatsApp escaneando el QR'}
+                {waStatus === 'checking' && 'Verificando estado de conexión...'}
+                {waStatus === 'error' && '⚠️ Configura las variables de entorno de Evolution API'}
+              </p>
+            </div>
+          </div>
+
+          {/* Error: sin configuración */}
+          {waStatus === 'error' && (
+            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle size={18} className="text-red-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-700 dark:text-red-400">Evolution API no configurada</p>
+                  <p className="text-xs text-red-600/70 dark:text-red-400/60 mt-1">
+                    Agrega las variables <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">VITE_EVOLUTION_URL</code> y <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">VITE_EVOLUTION_KEY</code> en tu archivo <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">.env</code> con los datos de tu servidor Evolution API.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* QR Code */}
+          {qrBase64 && waStatus === 'connecting' && (
+            <div className="flex flex-col items-center gap-4">
+              <div className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
+                <img
+                  src={qrBase64.startsWith('data:') ? qrBase64 : `data:image/png;base64,${qrBase64}`}
+                  alt="Código QR de WhatsApp"
+                  className="w-56 h-56 object-contain"
+                />
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+                Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo
+              </p>
+              <div className="flex items-center gap-1 text-xs text-brand-primary">
+                <Loader2 size={14} className="animate-spin" />
+                <span>Escaneando...</span>
+              </div>
+            </div>
+          )}
+
+          {/* Checking state */}
+          {waStatus === 'checking' && (
+            <div className="flex items-center justify-center gap-2 py-6">
+              <Loader2 size={18} className="animate-spin text-slate-400" />
+              <span className="text-sm text-slate-400">Verificando...</span>
+            </div>
+          )}
+
+          {/* Actions */}
+          {waStatus !== 'error' && waStatus !== 'checking' && (
+            <div className="flex items-center gap-3 mt-4">
+              {waStatus === 'disconnected' && (
+                <button
+                  type="button"
+                  onClick={requestQR}
+                  disabled={waLoading}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-all shadow-md disabled:opacity-50"
+                >
+                  {waLoading ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
+                  {waLoading ? 'Conectando...' : 'Conectar WhatsApp'}
+                </button>
+              )}
+
+              {waStatus === 'connected' && (
+                <>
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 rounded-xl text-sm font-semibold">
+                    <Link2 size={16} />
+                    Conectado
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDisconnect}
+                    disabled={waLoading}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/20 dark:hover:bg-red-950/40 dark:text-red-400 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+                  >
+                    {waLoading ? <Loader2 size={16} className="animate-spin" /> : <Unlink size={16} />}
+                    Desconectar
+                  </button>
+                </>
+              )}
+
+              {waStatus === 'connecting' && (
+                <button
+                  type="button"
+                  onClick={handleReconnect}
+                  disabled={waLoading}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+                >
+                  <RefreshCw size={16} />
+                  Generar nuevo QR
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Meta de Ventas */}

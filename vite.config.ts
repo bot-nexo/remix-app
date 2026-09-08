@@ -36,6 +36,13 @@ export default defineConfig(() => {
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      proxy: {
+        '/evolution-api': {
+          target: 'http://localhost:8081',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/evolution-api/, ''),
+        },
+      },
     },
   };
 });

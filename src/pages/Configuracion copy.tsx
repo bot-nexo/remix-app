@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Bot, Save, MessageCircle, Link2, Unlink, RefreshCw, Loader2, AlertCircle, Phone } from 'lucide-react';
+import { Bot, Save, MessageCircle, Link2, Unlink, RefreshCw, Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import {
   isEvolutionConfigured,
@@ -35,7 +35,6 @@ export default function Configuracion() {
   const [tolerancia, setTolerancia] = useState('15');
   const [metaVentas, setMetaVentas] = useState('1000000');
   const [metaVentasActual, setMetaVentasActual] = useState('0');
-  const [telefonoProfesional, setTelefonoProfesional] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -47,7 +46,7 @@ export default function Configuracion() {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // QR auto-refresh (expira en ~60s)
-  const QR_EXPIRY_SECONDS = 55;
+  const QR_EXPIRY_SECONDS = 55; // un poco menos de 60s para regenerar antes de que expire
   const [qrCountdown, setQrCountdown] = useState(0);
   const qrTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -69,7 +68,7 @@ export default function Configuracion() {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
       if (qrTimerRef.current) clearInterval(qrTimerRef.current);
-    };
+    }
   }, []);
 
   const fetchConfig = async () => {
@@ -78,16 +77,12 @@ export default function Configuracion() {
       .from('configuracion')
       .select('clave, valor')
       .eq('user_id', user!.id);
-
     if (data) {
       data.forEach((item) => {
         if (item.clave === 'bot_activo') setBotActive(item.valor === 'true');
         if (item.clave === 'bot_tolerancia') setTolerancia(item.valor);
-        if (item.clave === 'meta_ventas_mes') {
-          setMetaVentas(item.valor);
-          setMetaVentasActual(item.valor);
-        }
-        if (item.clave === 'telefono_profesional') setTelefonoProfesional(item.valor);
+        if (item.clave === 'meta_ventas_mes') setMetaVentas(item.valor);
+        if (item.clave === 'meta_ventas_mes') setMetaVentasActual(item.valor);
       });
     }
     setLoading(false);
@@ -101,18 +96,14 @@ export default function Configuracion() {
       { user_id: user.id, clave: 'bot_activo', valor: botActive.toString() },
       { user_id: user.id, clave: 'bot_tolerancia', valor: tolerancia },
       { user_id: user.id, clave: 'meta_ventas_mes', valor: metaVentas },
-      { user_id: user.id, clave: 'telefono_profesional', valor: telefonoProfesional.trim() },
     ];
     try {
-      const { error } = await supabase
-        .from('configuracion')
-        .upsert(configs, { onConflict: 'user_id, clave' });
-
+      const { error } = await supabase.from('configuracion').upsert(configs, { onConflict: 'user_id, clave' });
       if (error) throw error;
       setMetaVentasActual(metaVentas);
-      showToast('Configuración guardada correctamente.', 'success');
+      showToast('Configuracion guardada.', 'success');
     } catch (err: any) {
-      showToast('Error al guardar la configuración.', 'error');
+      showToast('Error al guardar.', 'error');
     } finally {
       setSaving(false);
     }
@@ -135,15 +126,20 @@ export default function Configuracion() {
     setQrCountdown(0);
   };
 
+  /**
+   * Inicia countdown de 55s. Al llegar a 0, regenera el QR automáticamente.
+   */
   const startQRCountdown = () => {
     stopQRCountdown();
     setQrCountdown(QR_EXPIRY_SECONDS);
     qrTimerRef.current = setInterval(() => {
       setQrCountdown((prev) => {
         if (prev <= 1) {
+          // QR por expirar → regenerar
           clearInterval(qrTimerRef.current!);
           qrTimerRef.current = null;
           showToast('QR expiró, generando nuevo...', 'warning');
+          // Usamos setTimeout para no bloquear el setState
           setTimeout(() => requestQR(), 0);
           return 0;
         }
@@ -201,19 +197,23 @@ export default function Configuracion() {
     stopQRCountdown();
     try {
       const qr = await getQRCode();
+      // Evolution API v2 returns base64 at root level (with data:image prefix)
       if (qr.base64) {
         setQrBase64(qr.base64);
         setWaStatus('connecting');
         startPolling();
         startQRCountdown();
       } else if (qr.instance?.state === 'open') {
+        // Already connected
         setWaStatus('connected');
         setQrBase64(null);
       }
     } catch (err: any) {
+      // If instance doesn't exist, create it first
       if (err.message?.includes('404') || err.message?.includes('not found')) {
         try {
           await createInstance();
+          // Now request QR with the global key
           const qr = await getQRCode();
           if (qr.base64) {
             setQrBase64(qr.base64);
@@ -263,10 +263,11 @@ export default function Configuracion() {
 
   if (loading) return <div className="p-8 text-center text-sm text-slate-400">Cargando...</div>;
 
+  //*************************************** */
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Configuración</h1>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Configuracion</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
           Ajusta el comportamiento de tu asistente
         </p>
@@ -292,29 +293,6 @@ export default function Configuracion() {
           </div>
         </div>
 
-        {/* Teléfono del Profesional (Notificaciones) */}
-        <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800/60 p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <Phone size={18} />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Teléfono del Profesional</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Recibirá notificaciones cuando un cliente solicite un asesor humano.</p>
-            </div>
-          </div>
-          <div className="mt-2">
-            <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Número de WhatsApp (con código de país)</label>
-            <input
-              type="text"
-              placeholder="Ej: 573001234567"
-              value={telefonoProfesional}
-              onChange={(e) => setTelefonoProfesional(e.target.value)}
-              className="w-full max-w-sm px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all"
-            />
-          </div>
-        </div>
-
         {/* Tolerancia */}
         <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800/60 p-5">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Tiempo de Tolerancia</h3>
@@ -327,7 +305,7 @@ export default function Configuracion() {
                 className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all"
               />
             </div>
-            <p className="text-xs text-slate-400 dark:text-slate-500 pb-2.5">Tiempo que esperará al cliente antes de marcar inasistencia.</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 pb-2.5">Tiempo que esperara al cliente antes de marcar inasistencia.</p>
           </div>
         </div>
 
@@ -344,7 +322,7 @@ export default function Configuracion() {
               <h3 className="text-sm font-semibold text-slate-900 dark:text-white">WhatsApp</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 {waStatus === 'connected' && '✅ Conectado y listo para recibir mensajes'}
-                {waStatus === 'connecting' && '⏳ Esperando escaneo del código QR...'}
+                {waStatus === 'connecting' && '⏳ Esperando escaneo del código QR... (se regenera automáticamente si expira)'}
                 {waStatus === 'disconnected' && 'Desconectado — conecta tu WhatsApp escaneando el QR'}
                 {waStatus === 'checking' && 'Verificando estado de conexión...'}
                 {waStatus === 'error' && '⚠️ Configura las variables de entorno de Evolution API'}
@@ -352,6 +330,7 @@ export default function Configuracion() {
             </div>
           </div>
 
+          {/* Error: sin configuración */}
           {waStatus === 'error' && (
             <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 rounded-xl p-4">
               <div className="flex items-start gap-3">
@@ -359,13 +338,14 @@ export default function Configuracion() {
                 <div>
                   <p className="text-sm font-medium text-red-700 dark:text-red-400">Evolution API no configurada</p>
                   <p className="text-xs text-red-600/70 dark:text-red-400/60 mt-1">
-                    Agrega las variables <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">VITE_EVOLUTION_URL</code> y <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">VITE_EVOLUTION_KEY</code> en tu archivo <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">.env</code>.
+                    Agrega las variables <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">VITE_EVOLUTION_URL</code> y <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">VITE_EVOLUTION_KEY</code> en tu archivo <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">.env</code> con los datos de tu servidor Evolution API.
                   </p>
                 </div>
               </div>
             </div>
           )}
 
+          {/* QR Code */}
           {qrBase64 && waStatus === 'connecting' && (
             <div className="flex flex-col items-center gap-4">
               <div className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
@@ -398,6 +378,7 @@ export default function Configuracion() {
             </div>
           )}
 
+          {/* Checking state */}
           {waStatus === 'checking' && (
             <div className="flex items-center justify-center gap-2 py-6">
               <Loader2 size={18} className="animate-spin text-slate-400" />
@@ -405,6 +386,7 @@ export default function Configuracion() {
             </div>
           )}
 
+          {/* Actions */}
           {waStatus !== 'error' && waStatus !== 'checking' && (
             <div className="flex items-center gap-3 mt-4">
               {waStatus === 'disconnected' && (

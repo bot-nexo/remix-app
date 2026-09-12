@@ -87,7 +87,7 @@ export default defineConfig(() => {
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       proxy: {
         '/evolution-api': {
-          target: 'https://marvelous-determination-production-ced5.up.railway.app',
+          target: 'http://localhost:8480',
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path.replace(/^\/evolution-api/, ''),

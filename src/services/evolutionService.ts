@@ -10,7 +10,7 @@
 
 const EVOLUTION_URL = import.meta.env.VITE_EVOLUTION_URL || '';
 const EVOLUTION_KEY = import.meta.env.VITE_EVOLUTION_KEY || '';
-const INSTANCE_NAME = 'agentepaula';
+const INSTANCE_NAME = 'spa-angel-nails';
 
 // En desarrollo usamos el proxy de Vite para evitar CORS
 // En producción se usa la URL directa

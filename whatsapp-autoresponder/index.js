@@ -27,7 +27,7 @@ const path    = require('path');
 // ─── Constantes de entorno ────────────────────────────────────────────────────
 const PORT                 = process.env.PORT                 || 3000;
 const ADMIN_API_KEY        = process.env.ADMIN_API_KEY        || '';
-const EVOLUTION_API_URL    = process.env.EVOLUTION_API_URL    || 'http://localhost:8080';
+const EVOLUTION_API_URL    = process.env.EVOLUTION_API_URL    || 'http://localhost:8480';
 const EVOLUTION_API_KEY    = process.env.EVOLUTION_API_KEY    || '';
 const EVOLUTION_INSTANCE   = process.env.EVOLUTION_INSTANCE_NAME || 'default';
 

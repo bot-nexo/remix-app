@@ -1,44 +1,18 @@
 {
-
   "agentKeywords": [
     "agente",
     "asesor",
     "persona",
     "humano",
-    "hablar con"
+    "hablar con",
+    "quiero hablar",
+    "necesito un asesor",
+    "pedir asesor"
   ],
-
-  "faqs": [
-    {
-      "id": "horarios",
-      "keywords": ["horario", "horarios", "abren", "cierran", "atencion", "atienden"],
-      "message": "🕐 *Nuestro horario de atención es:*\nLunes a Viernes: 8:00 AM – 6:00 PM\nSábados: 9:00 AM – 1:00 PM\n\nFuera de este horario responderemos tu mensaje a la brevedad. 😊",
-      "link": ""
-    },
-    {
-      "id": "precios",
-      "keywords": ["precio", "precios", "costo", "costos", "valor", "tarifa", "cuanto", "cuánto"],
-      "message": "💰 *Información de precios y tarifas:*\nPuedes consultar nuestro catálogo actualizado en el siguiente enlace:",
-      "link": "https://ejemplo.com/precios"
-    },
-    {
-      "id": "ubicacion",
-      "keywords": ["ubicacion", "ubicación", "direccion", "dirección", "donde", "dónde", "mapa"],
-      "message": "📍 *Nuestra ubicación:*\nCalle Ejemplo #123, Ciudad, País.\n\nEncuéntranos en Google Maps aquí:",
-      "link": "https://goo.gl/maps/ejemplo"
-    },
-    {
-      "id": "pedido",
-      "keywords": ["pedido", "orden", "compra", "estado", "seguimiento", "envio", "envío"],
-      "message": "📦 *Seguimiento de pedidos:*\nPuedes verificar el estado de tu pedido en nuestro portal de clientes:",
-      "link": "https://ejemplo.com/mis-pedidos"
-    }
-  ],
-
+  "faqs": [],
   "defaultSelfService": {
     "enabled": true,
-    "message": "👋 ¡Hola! Gracias por contactarnos.\n\nEn este momento no podemos atenderte personalmente, pero puedes encontrar información útil en nuestro portal de autoservicio.\n\nSi necesitas hablar con un asesor, escribe *agente* y te atenderemos pronto. 😊",
-    "link": "https://ejemplo.com/autoservicio",
+    "message": "👋 *¡Gracias por contactarnos!*\n\nEn este momento no podemos atenderte personalmente, pero puedes encontrar información útil en nuestro portal de autoservicio.\n\nSi necesitas hablar con un asesor, escribe *agente* y te atenderemos pronto. 😊",
     "linkPreview": true
   }
 }

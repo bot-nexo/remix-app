@@ -1,5 +1,5 @@
 # ─── Etapa 1: Imagen base ─────────────────────────────────────────────────────
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 
 # Metadatos de la imagen
 LABEL maintainer="tu@email.com"

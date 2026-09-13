@@ -7,10 +7,17 @@
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
-  "keywords": ["whatsapp", "evolution-api", "autoresponder", "bot", "microservice"],
+  "keywords": [
+    "whatsapp",
+    "evolution-api",
+    "autoresponder",
+    "bot",
+    "microservice"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "^2.116.0",
     "axios": "^1.7.2",
     "dotenv": "^16.4.5",
     "express": "^4.19.2"

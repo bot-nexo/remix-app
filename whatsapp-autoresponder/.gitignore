@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+*.md
+.yml
+Dokerfile
+docker-compose.yml
+

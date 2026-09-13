@@ -9,7 +9,7 @@
  *  - Resolver preguntas frecuentes (FAQs) con respuestas configurables.
  *  - Exponer una API REST de administración para leer/actualizar config en caliente.
  *
- * Autor: <tu nombre>
+ * Autor: <NexoDevStudio>
  * Licencia: MIT
  */
 
@@ -20,16 +20,16 @@ require('dotenv').config();
 
 // ─── Módulos core / externos ──────────────────────────────────────────────────
 const express = require('express');
-const axios   = require('axios');
-const fs      = require('fs');
-const path    = require('path');
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 
 // ─── Constantes de entorno ────────────────────────────────────────────────────
-const PORT                 = process.env.PORT                 || 3000;
-const ADMIN_API_KEY        = process.env.ADMIN_API_KEY        || '';
-const EVOLUTION_API_URL    = process.env.EVOLUTION_API_URL    || 'http://localhost:8480';
-const EVOLUTION_API_KEY    = process.env.EVOLUTION_API_KEY    || '';
-const EVOLUTION_INSTANCE   = process.env.EVOLUTION_INSTANCE_NAME || 'default';
+const PORT = process.env.PORT || 3000;
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8480';
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
+const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE_NAME || 'default';
 
 // ─── Ruta al archivo de configuración ────────────────────────────────────────
 const CONFIG_PATH = path.join(__dirname, 'config.json');
@@ -55,37 +55,6 @@ function loadConfig() {
 /** Configuración activa en memoria. Mutable por el endpoint POST /api/config. */
 let config = loadConfig();
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sección 2 · Cooldown en memoria
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Mapa de cooldown: jid (string) → timestamp de último mensaje respondido (number).
- * Un usuario en cooldown no recibirá nueva respuesta automática hasta que
- * haya transcurrido `config.cooldownMinutes` desde su último mensaje respondido.
- */
-const cooldownMap = new Map();
-
-/**
- * Comprueba si un JID está dentro del periodo de cooldown.
- * @param {string} jid  - Identificador canónico del usuario.
- * @returns {boolean}   - `true` si debe ignorarse el mensaje.
- */
-function isInCooldown(jid) {
-  if (!cooldownMap.has(jid)) return false;
-  const lastReply   = cooldownMap.get(jid);
-  const elapsedMs   = Date.now() - lastReply;
-  const cooldownMs  = (config.cooldownMinutes || 10) * 60 * 1_000;
-  return elapsedMs < cooldownMs;
-}
-
-/**
- * Actualiza (o crea) la entrada de cooldown para un JID al momento actual.
- * @param {string} jid
- */
-function setCooldown(jid) {
-  cooldownMap.set(jid, Date.now());
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sección 3 · Utilidades de texto
@@ -174,11 +143,11 @@ async function sendEvolutionMessage(to, text, preview = false) {
   const url = `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`;
 
   const payload = {
-    number : to,
-    text   : text,
+    number: to,
+    text: text,
     options: {
-      delay      : 1200,    // pequeña demora para simular escritura (ms)
-      presence   : 'composing',
+      delay: 1200,    // pequeña demora para simular escritura (ms)
+      presence: 'composing',
       linkPreview: preview,
     },
   };
@@ -186,7 +155,7 @@ async function sendEvolutionMessage(to, text, preview = false) {
   await axios.post(url, payload, {
     headers: {
       'Content-Type': 'application/json',
-      apikey        : EVOLUTION_API_KEY,
+      apikey: EVOLUTION_API_KEY,
     },
     timeout: 10_000,
   });
@@ -228,9 +197,9 @@ app.post('/webhook/evolution', async (req, res) => {
   // ── 1. Responder HTTP 200 de inmediato para no bloquear Evolution ──────────
   res.sendStatus(200);
 
-  const body  = req.body;
+  const body = req.body;
   const event = body?.event;
-  const data  = body?.data;
+  const data = body?.data;
 
   // ── 2. Filtrar: solo procesar eventos de nuevos mensajes ──────────────────
   if (event !== 'messages.upsert') {
@@ -289,18 +258,18 @@ app.post('/webhook/evolution', async (req, res) => {
   }
 
   // ── 9. Comprobar cooldown ─────────────────────────────────────────────────
-  if (isInCooldown(canonicalJid)) {
-    const remaining = Math.ceil(
-      ((config.cooldownMinutes * 60_000) - (Date.now() - cooldownMap.get(canonicalJid))) / 60_000
-    );
-    console.log(`[BOT] ${canonicalJid} en cooldown (~${remaining} min restantes). Ignorando.`);
-    return;
-  }
+  // if (isInCooldown(canonicalJid)) {
+  //   const remaining = Math.ceil(
+  //     ((config.cooldownMinutes * 60_000) - (Date.now() - cooldownMap.get(canonicalJid))) / 60_000
+  //   );
+  //   console.log(`[BOT] ${canonicalJid} en cooldown (~${remaining} min restantes). Ignorando.`);
+  //   return;
+  // }
 
   // ── 10. Resolver respuesta ────────────────────────────────────────────────
-  const faq          = matchFaq(normalizedText);
+  const faq = matchFaq(normalizedText);
   const responseText = buildResponseText(faq);
-  const usePreview   = faq
+  const usePreview = faq
     ? Boolean(faq.link)
     : Boolean(config.defaultSelfService?.linkPreview && config.defaultSelfService?.link);
 
@@ -375,8 +344,8 @@ app.post('/api/config', requireAdminKey, (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
   res.json({
-    status   : 'ok',
-    uptime   : process.uptime(),
+    status: 'ok',
+    uptime: process.uptime(),
     timestamp: new Date().toISOString(),
   });
 });
@@ -390,7 +359,7 @@ app.listen(PORT, () => {
   console.log('─────────────────────────────────────────────────');
   console.log(`  ✅  Servidor escuchando en http://localhost:${PORT}`);
   console.log(`  📋  Instancia Evolution : ${EVOLUTION_INSTANCE}`);
-  console.log(`  ⏱️   Cooldown             : ${config.cooldownMinutes} min`);
+  console.log(`  ⏱️   Cooldown             : 0 min`);
   console.log(`  📚  FAQs cargadas        : ${config.faqs?.length ?? 0}`);
   console.log('─────────────────────────────────────────────────');
 });

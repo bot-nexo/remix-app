@@ -1,28 +1,29 @@
-import { useState, useEffect } from "react";
-import BackButton from "../ui/BackButton";
-import { Calendar, Clock, Trash2, RefreshCw, AlertTriangle, HandHeart, ChevronDown, CalendarOff } from "lucide-react";
 import { cancelarCita, Citas, obtenerActivas } from "@/src/services/misCitas";
+import { AlertTriangle, Calendar, CalendarOff, ChevronDown, Clock, HandHeart, RefreshCw, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useToast } from '../../contexts/ToastContext';
+import BackButton from "../ui/BackButton";
 
 interface Props {
     onVolver: () => void;
     idCliente: string;
+    bookingToken: string;
 }
 
-export default function PasoCancelarCita({ onVolver, idCliente }: Props) {
+export default function PasoCancelarCita({ onVolver, idCliente, bookingToken }: Props) {
     const { showToast } = useToast();
     const [citaAEliminar, setCitaAEliminar] = useState<any | null>(null);
     const [loading, setLoading] = useState(false);
     const [citas, setCitas] = useState<Citas[]>([]);
 
     useEffect(() => {
-        cargarCitas();
-    }, []);
+        if (idCliente && bookingToken) cargarCitas();
+    }, [idCliente, bookingToken]);
 
     const cargarCitas = async () => {
         try {
             setLoading(true);
-            const citas = await obtenerActivas(idCliente);
+            const citas = await obtenerActivas(bookingToken);
             if (citas) {
                 setCitas(citas);
             } else {
@@ -40,7 +41,7 @@ export default function PasoCancelarCita({ onVolver, idCliente }: Props) {
         if (!citaAEliminar) return;
         try {
             setLoading(true);
-            const res = await cancelarCita(citaAEliminar.id);
+            const res = await cancelarCita(citaAEliminar.id, bookingToken);
             if (res) {
                 showToast("Cita cancelada exitosamente", "success");
                 await cargarCitas();

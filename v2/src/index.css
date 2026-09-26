@@ -1,0 +1,67 @@
+@import '@fontsource-variable/dm-sans';
+@import '@fontsource-variable/manrope';
+
+:root {
+  color-scheme: light;
+  font-family: 'DM Sans Variable', 'Segoe UI', sans-serif;
+  color: #25332e;
+  background: #f5f7f4;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  --ink: #25332e;
+  --muted: #78827d;
+  --line: #e8ece8;
+  --canvas: #f5f7f4;
+  --paper: #ffffff;
+  --forest: #183c35;
+  --forest-deep: #14342e;
+  --coral: #e66b55;
+  --coral-soft: #fff0ec;
+  --mint: #e9f4ef;
+  --gold: #f3c66b;
+  --shadow-soft: 0 12px 36px rgba(25, 55, 47, 0.06);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 0;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--canvas);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(230, 107, 85, 0.42);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(230, 107, 85, 0.2);
+}
+
+#root {
+  min-height: 100vh;
+}

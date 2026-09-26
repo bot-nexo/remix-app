@@ -1,8 +1,72 @@
+# ===== Dependencias =====
 node_modules/
-build/
+.pnpm-store/
+.yarn/
+.pnp.*
+.pnp.js
+
+# ===== Builds / compilacion =====
 dist/
+build/
+out/
+*.tsbuildinfo
+.vite/
+.turbo/
+.cache/
 coverage/
-.DS_Store
-*.log
-.env*
+.nyc_output/
+
+# ===== Variables de entorno y secretos =====
+# Ignora TODO .env (cualquier subcarpeta, cualquier sufijo: .env, .env.local,
+# .env.production, .env.development.local, etc.)
+.env
+.env.*
+# ...y vuelve a permitir solo los plantillas de ejemplo
 !.env.example
+!.env.*.example
+!.env.sample
+# Secretos adicionales que nunca deben entrar al repo
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+service-role*.json
+secrets*.json
+credentials.json
+.netrc
+.netrc.*
+.npmrc.local
+.pgpass
+
+# ===== Supabase (ignorar solo estado local, NO migrations/) =====
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+supabase/config.local.toml
+
+# ===== Logs y temporales =====
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+tmp/
+temp/
+
+# ===== Editores / SO =====
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.sw?
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.user

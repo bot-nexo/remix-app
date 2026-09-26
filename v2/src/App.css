@@ -1,0 +1,281 @@
+.app-shell{min-height:100vh;display:flex;background:var(--canvas)}
+.sidebar{width:248px;flex:0 0 248px;min-height:100vh;padding:25px 16px 16px;background:var(--forest);color:#eaf1ed;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;z-index:20}
+.brand-lockup{display:flex;align-items:center;gap:11px;padding:0 9px 28px}
+.brand-mark{width:37px;height:37px;border-radius:12px;background:#f1c779;color:var(--forest-deep);display:grid;place-items:center}
+.brand-copy{display:flex;flex-direction:column;line-height:1}
+.brand-copy strong{font:700 21px/1 'Manrope Variable','Segoe UI',sans-serif;letter-spacing:0;color:#fff}
+.brand-copy span{margin-top:6px;font-size:8px;font-weight:700;letter-spacing:1.1px;color:#a9c1b6}
+.business-switcher{min-height:58px;padding:8px 9px;border:1px solid rgba(238,247,241,.13);border-radius:10px;background:rgba(255,255,255,.055);display:flex;align-items:center;gap:10px;margin-bottom:27px}
+.business-avatar{width:34px;height:34px;border-radius:9px;background:#f2d8c8;color:#55453d;display:grid;place-items:center;font:700 14px 'Manrope Variable',sans-serif}
+.business-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.business-copy span{font-size:8px;font-weight:700;letter-spacing:.8px;color:#9fb8ad}
+.business-copy strong{font-size:12px;font-weight:600;color:#f7faf8}
+.business-switcher>svg{color:#a8bcb3}
+.nav-caption,.eyebrow{margin:0;color:#89938e;font-size:9px;font-weight:700;letter-spacing:1px}
+.nav-caption{padding:0 11px 9px;color:#91aa9f}
+.primary-nav{display:flex;flex-direction:column;gap:4px}
+.nav-link{width:100%;min-height:41px;padding:0 11px;border:0;border-radius:8px;background:transparent;color:#c6d3cd;display:flex;align-items:center;gap:11px;text-align:left;font-size:12px;font-weight:500;cursor:pointer;transition:background .16s,color .16s}
+.nav-link:hover{background:rgba(255,255,255,.075);color:#fff}
+.nav-link-active,.nav-link-active:hover{background:#f1c779;color:#263d35;font-weight:700}
+.nav-count{margin-left:auto;min-width:20px;height:20px;border-radius:7px;background:rgba(22,59,51,.13);display:grid;place-items:center;font-size:10px}
+.sidebar-bottom{margin-top:auto}
+.sidebar-bottom>.nav-link{margin-bottom:13px;color:#b4c5bd}
+.profile-row{min-height:58px;padding:10px 6px 0;border-top:1px solid rgba(255,255,255,.13);display:flex;align-items:center;gap:9px}
+.profile-avatar{width:32px;height:32px;border-radius:50%;background:#d9c4ad;color:#53463d;display:grid;place-items:center;font-size:10px;font-weight:700}
+.profile-copy{flex:1;display:flex;flex-direction:column;gap:3px}
+.profile-copy strong{font-size:11px;font-weight:600;color:#f6f9f7}
+.profile-copy span{font-size:10px;color:#a3b7ad}
+.profile-row>svg{color:#a5b8af}
+.main-area{min-width:0;flex:1}
+.topbar{height:66px;padding:0 37px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.breadcrumb{display:flex;align-items:center;gap:10px;font-size:11px;color:#86908b}
+.breadcrumb-divider{color:#c0c8c3}
+.breadcrumb strong{font-weight:600;color:#394740}
+.topbar-actions{display:flex;align-items:center;gap:20px}
+.demo-badge{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:20px;background:#f1f5f2;color:#68756e;font-size:10px;font-weight:600}
+.demo-badge>span{width:6px;height:6px;border-radius:50%;background:#d29b35}
+.icon-button{width:34px;height:34px;padding:0;border:0;border-radius:8px;background:transparent;color:#737f78;display:inline-grid;place-items:center;cursor:pointer;transition:background .16s,color .16s}
+.icon-button:hover{background:#f2f5f2;color:#263b33}
+.notification-button{position:relative}
+.notification-button i{position:absolute;top:7px;right:7px;width:6px;height:6px;border-radius:50%;background:var(--coral);border:1px solid #fff}
+.mobile-menu-button{display:none}
+.page-content{max-width:1490px;margin:0 auto;padding:34px 38px 22px}
+.page-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:25px}
+.page-heading .eyebrow{margin-bottom:8px;color:#8a938e}
+.page-heading h1{margin:0;color:#26352f;font:600 28px/1.18 'Manrope Variable','Segoe UI',sans-serif;letter-spacing:0}
+.page-subtitle{margin:7px 0 0;color:#808b84;font-size:12px}
+.primary-button,.secondary-button{height:38px;padding:0 14px;border:0;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer;transition:transform .16s,background .16s,box-shadow .16s}
+.primary-button{background:var(--forest);color:#fff;box-shadow:0 3px 8px rgba(24,60,53,.13)}
+.primary-button:hover{background:#214b42;transform:translateY(-1px)}
+.secondary-button{background:#fff;border:1px solid #e4e9e5;color:#4f5c55}
+.secondary-button:hover{background:#f7f9f7}
+.metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.metric-card{min-height:134px;padding:16px 17px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:var(--shadow-soft)}
+.metric-top{display:flex;align-items:center;justify-content:space-between;color:#6e7973;font-size:11px;font-weight:600}
+.metric-icon{width:31px;height:31px;border-radius:9px;display:grid;place-items:center}
+.metric-icon-green{background:#e8f3ed;color:#3c7962}
+.metric-icon-coral{background:#fff0ec;color:#d76c58}
+.metric-icon-gold{background:#fff6df;color:#b58c39}
+.metric-value{margin-top:13px;color:#293831;font:650 26px/1 'Manrope Variable','Segoe UI',sans-serif;letter-spacing:0}
+.metric-value-currency{font-size:23px}
+.metric-unit{font:500 11px 'DM Sans Variable','Segoe UI',sans-serif;color:#7e8982}
+.metric-foot{display:flex;align-items:center;gap:6px;margin-top:9px;color:#8a948e;font-size:9px}
+.positive-trend{display:inline-flex;align-items:center;gap:2px;color:#3f8c6a;font-weight:700}
+.neutral-trend{padding:2px 5px;border-radius:4px;background:#fff4df;color:#ad8332;font-weight:700}
+.dashboard-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(250px,.82fr);align-items:start;gap:17px}
+.agenda-panel,.rail-section,.module-panel{min-width:0;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-soft)}
+.agenda-panel{overflow:hidden}
+.agenda-header{min-height:70px;padding:15px 18px 12px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.section-heading h2,.agenda-header h2,.module-panel h2{margin:4px 0 0;color:#2d3933;font:600 15px/1.3 'Manrope Variable','Segoe UI',sans-serif;letter-spacing:0}
+.agenda-date-control{display:flex;align-items:center;gap:5px}
+.agenda-date-control>span{min-width:104px;text-align:center;color:#68746d;font-size:10px;font-weight:600;text-transform:capitalize}
+.subtle-icon{width:27px;height:27px;border:1px solid #edf0ed;border-radius:7px}
+.filter-row{padding:0 17px 11px;display:flex;align-items:center;gap:5px;overflow:auto;border-bottom:1px solid #eff2ef;scrollbar-width:none}
+.filter-row::-webkit-scrollbar{display:none}
+.filter-chip{min-height:27px;padding:0 9px;border:1px solid transparent;border-radius:6px;background:transparent;color:#7d8781;font-size:9px;white-space:nowrap;cursor:pointer}
+.filter-chip:hover{background:#f6f8f6}
+.filter-chip-active{background:#edf3ef;color:#345b4d;font-weight:700}
+.filter-chip>span{display:inline-grid;place-items:center;min-width:15px;height:15px;margin-left:5px;border-radius:5px;background:#f6dfd7;color:#b95d48;font-size:8px}
+.appointments-list{padding:1px 16px 0}
+.appointment-row{min-height:69px;display:grid;grid-template-columns:54px 34px minmax(120px,1fr) auto 74px 25px;align-items:center;gap:9px;border-bottom:1px solid #f0f2f0}
+.appointment-time{display:flex;flex-direction:column;gap:3px}
+.appointment-time strong{font-size:11px;font-weight:700;color:#45534c}
+.appointment-time span{font-size:9px;color:#9aa39e}
+.client-avatar{width:32px;height:32px;flex:0 0 32px;border-radius:50%;display:grid;place-items:center;color:#45534c;font-size:9px;font-weight:700}
+.avatar-rose{background:#f8e6df}
+.avatar-mint{background:#dfeee5}
+.avatar-lilac{background:#ebe4f1}
+.avatar-butter{background:#f6efce}
+.avatar-sky{background:#dcebf0}
+.appointment-details{min-width:0;display:flex;flex-direction:column;gap:4px}
+.appointment-details strong{overflow:hidden;color:#38463f;font-size:10px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+.appointment-details>span{overflow:hidden;color:#89938d;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.status-pill{justify-self:start;display:inline-flex;align-items:center;gap:5px;padding:4px 6px;border-radius:5px;font-size:8px;font-weight:700;white-space:nowrap}
+.status-pill i{width:5px;height:5px;border-radius:50%;background:currentColor}
+.status-confirmed{background:#edf5ef;color:#4c8268}
+.status-pending{background:#fff4df;color:#aa8030}
+.status-complete{background:#f0f2f0;color:#77817b}
+.appointment-price{justify-self:end;color:#526057;font-size:9px;font-weight:700;white-space:nowrap}
+.row-more{width:25px;height:28px}
+.agenda-footer-link{width:100%;height:42px;border:0;background:#fff;color:#557564;display:flex;align-items:center;justify-content:center;gap:5px;font-size:10px;font-weight:700;cursor:pointer}
+.agenda-footer-link:hover{background:#fafcfb}
+.empty-state{min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#8b958e}
+.empty-state svg{color:#91a99a}
+.empty-state strong{color:#526057;font-size:12px}
+.empty-state span{font-size:10px}
+.right-rail{display:flex;flex-direction:column;gap:13px}
+.rail-section{padding:15px 15px 14px}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.section-heading h2{font-size:12px}
+.occupancy-number{display:flex;align-items:baseline;gap:2px;margin-top:16px}
+.occupancy-number strong{color:#2e4138;font:650 35px/1 'Manrope Variable','Segoe UI',sans-serif}
+.occupancy-number>span:nth-child(2){color:#64806f;font:600 16px 'Manrope Variable',sans-serif}
+.occupancy-note{margin-left:8px;color:#89938d;font-size:9px}
+.occupancy-track{height:7px;margin-top:13px;border-radius:10px;background:#eef2ee;overflow:hidden}
+.occupancy-track>span{display:block;height:100%;border-radius:10px;background:linear-gradient(90deg,#6a9b7f,#aec893)}
+.occupancy-meta{margin-top:8px;display:flex;justify-content:space-between;gap:6px;color:#89938d;font-size:8px}
+.sparkle-mark{width:27px;height:27px;border-radius:8px;background:#fff4df;color:#b18a3d;display:grid;place-items:center}
+.service-chart{height:68px;margin-top:17px;display:flex;align-items:end;justify-content:space-between;gap:9px;border-bottom:1px solid #edf0ed}
+.chart-bar{width:100%;max-width:19px;border-radius:4px 4px 0 0;background:#e8efe9}
+.chart-bar-active{background:#668c73}
+.chart-labels{display:flex;justify-content:space-between;margin-top:6px;color:#9ba49e;font-size:8px}
+.service-highlight-footer{margin-top:13px;padding-top:10px;border-top:1px solid #eff2ef;display:flex;justify-content:space-between;color:#7e8982;font-size:9px}
+.whatsapp-inline{min-height:61px;padding:9px 11px;border:1px solid #d9ebe1;border-radius:9px;background:#eff7f2;display:flex;align-items:center;gap:9px;color:#54806a}
+.whatsapp-mark{width:32px;height:32px;border-radius:9px;background:#dceee2;display:grid;place-items:center}
+.whatsapp-inline>div:nth-child(2){flex:1;display:flex;flex-direction:column;gap:3px}
+.whatsapp-inline strong{color:#3f604e;font-size:10px}
+.whatsapp-inline span{color:#789181;font-size:8px}
+.page-footer{margin-top:19px;display:flex;align-items:center;justify-content:center;gap:6px;color:#98a19b;font-size:9px}
+.page-footer svg{color:#789783}
+.agenda-panel-expanded{max-width:1100px}
+.module-panel{padding:18px 19px}
+.module-panel-heading{min-height:43px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.data-table-wrap{width:100%;overflow-x:auto}
+.data-table{width:100%;border-collapse:collapse;text-align:left;white-space:nowrap}
+.data-table th{height:38px;border-bottom:1px solid #e9eeea;color:#8c9690;font-size:8px;font-weight:700;letter-spacing:.4px}
+.data-table td{height:61px;border-bottom:1px solid #f0f2f0;color:#657169;font-size:10px}
+.data-table tr:last-child td{border-bottom:0}
+.data-table td:first-child,.data-table th:first-child{padding-left:7px}
+.table-person,.table-service{display:flex;align-items:center;gap:9px}
+.table-person strong,.table-service strong{color:#3a4841;font-size:10px;font-weight:600}
+.table-service>span{width:29px;height:29px;border-radius:8px;background:#f2eee1;color:#9b8451;display:grid;place-items:center}
+.hours-panel{max-width:720px}
+.hours-list{margin-top:11px}
+.hours-row{min-height:48px;display:grid;grid-template-columns:1fr 1fr 80px;align-items:center;border-bottom:1px solid #eff2ef;color:#5d6962;font-size:11px}
+.hours-row:last-child{border-bottom:0}
+.hours-row strong{font-size:10px;font-weight:600}
+.hours-open,.hours-closed{justify-self:end;font-size:9px}
+.hours-open{color:#54806a}
+.hours-closed{color:#a0a8a2}
+.today-dot{font-weight:700;color:#354a3d}
+.whatsapp-setup{width:min(100%,530px);min-height:300px;padding:34px 30px;border:1px solid #e1eae3;border-radius:12px;background:#fff;text-align:center;box-shadow:var(--shadow-soft)}
+.whatsapp-setup-mark{width:52px;height:52px;margin:0 auto 18px;border-radius:15px;background:#e7f3ea;color:#4c8060;display:grid;place-items:center}
+.whatsapp-setup h2{margin:8px 0;color:#2f4037;font:600 20px 'Manrope Variable',sans-serif}
+.whatsapp-setup>p:not(.eyebrow){max-width:340px;margin:0 auto;color:#818d85;font-size:11px;line-height:1.65}
+.whatsapp-setup>.primary-button{margin-top:20px}
+.connection-status{margin:19px auto 0;display:flex;align-items:center;justify-content:center;gap:6px;color:#8e9991;font-size:9px}
+.connection-status i{width:6px;height:6px;border-radius:50%;background:#c7cec9}
+.toast-message{position:fixed;right:22px;bottom:22px;z-index:50;max-width:calc(100vw - 32px);min-height:43px;padding:0 10px 0 13px;border:1px solid #dce8df;border-radius:9px;background:#fff;box-shadow:0 8px 30px rgba(21,51,41,.13);display:flex;align-items:center;gap:8px;color:#476b55;font-size:10px}
+.toast-message>button{width:26px;height:26px;margin-left:4px;border:0;border-radius:6px;background:transparent;color:#78857c;display:grid;place-items:center;cursor:pointer}
+.modal-backdrop{position:fixed;inset:0;z-index:40;padding:18px;background:rgba(22,42,35,.38);display:grid;place-items:center}
+.appointment-modal{width:min(100%,480px);padding:22px;border:1px solid #e1e8e2;border-radius:13px;background:#fff;box-shadow:0 24px 80px rgba(17,43,35,.22)}
+.modal-heading{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:21px}
+.modal-heading h2{margin:5px 0 0;color:#293831;font:600 19px 'Manrope Variable',sans-serif}
+.appointment-modal form{display:flex;flex-direction:column;gap:14px}
+.appointment-modal label{display:flex;flex-direction:column;gap:6px;color:#67746c;font-size:10px;font-weight:600}
+.appointment-modal input,.appointment-modal select{width:100%;height:39px;padding:0 10px;border:1px solid #e0e6e1;border-radius:7px;background:#fff;color:#344139;font-size:11px}
+.appointment-modal input::placeholder{color:#a4ada7}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px;padding-top:15px;border-top:1px solid #edf0ed}
+.nav-scrim{display:none}
+.theme-toggle{border:1px solid #e7ebe7;background:#fff}
+.theme-toggle:hover{background:#f2f5f2}
+
+.theme-dark.app-shell{background:#121914;color:#e3ebe5}
+.theme-dark .main-area{background:#121914}
+.theme-dark .topbar,.theme-dark .metric-card,.theme-dark .agenda-panel,.theme-dark .rail-section,.theme-dark .module-panel,.theme-dark .appointment-modal,.theme-dark .whatsapp-setup,.theme-dark .toast-message{background:#1d2822;border-color:#34423a;color:#e3ebe5}
+.theme-dark .topbar{border-bottom-color:#2c3931}
+.theme-dark .breadcrumb,.theme-dark .page-subtitle,.theme-dark .metric-top,.theme-dark .metric-foot,.theme-dark .appointment-time span,.theme-dark .appointment-details>span,.theme-dark .appointment-price,.theme-dark .occupancy-note,.theme-dark .occupancy-meta,.theme-dark .chart-labels,.theme-dark .service-highlight-footer,.theme-dark .data-table td,.theme-dark .hours-row,.theme-dark .appointment-modal label{color:#aab6ad}
+.theme-dark .breadcrumb strong,.theme-dark .page-heading h1,.theme-dark .metric-value,.theme-dark .section-heading h2,.theme-dark .agenda-header h2,.theme-dark .module-panel h2,.theme-dark .appointment-details strong,.theme-dark .data-table td strong,.theme-dark .table-person strong,.theme-dark .table-service strong,.theme-dark .modal-heading h2,.theme-dark .whatsapp-setup h2{color:#e6eee8}
+.theme-dark .metric-unit,.theme-dark .eyebrow{color:#9ba99f}
+.theme-dark .agenda-date-control>span,.theme-dark .appointment-time strong{color:#c1ccc4}
+.theme-dark .agenda-header,.theme-dark .appointment-row,.theme-dark .module-panel-heading,.theme-dark .data-table th,.theme-dark .data-table td,.theme-dark .hours-row,.theme-dark .service-highlight-footer,.theme-dark .modal-actions{border-color:#303d35}
+.theme-dark .filter-chip{color:#abb7ae}
+.theme-dark .filter-chip:hover,.theme-dark .icon-button:hover,.theme-dark .secondary-button:hover,.theme-dark .agenda-footer-link:hover{background:#27342c}
+.theme-dark .filter-chip-active{background:#30483a;color:#dce9df}
+.theme-dark .agenda-footer-link,.theme-dark .secondary-button,.theme-dark .appointment-modal input,.theme-dark .appointment-modal select,.theme-dark .theme-toggle{background:#202c25;border-color:#3b4a40;color:#e1e9e3}
+.theme-dark .appointment-modal input::placeholder{color:#7e8b81}
+.theme-dark .empty-state,.theme-dark .portal-link{color:#aebbb2}
+.theme-dark .occupancy-number strong{color:#dce9df}
+.theme-dark .occupancy-number>span:nth-child(2){color:#a9c9b0}
+.theme-dark .occupancy-track{background:#344239}
+.theme-dark .chart-bar{background:#344239}
+.theme-dark .chart-bar-active{background:#82a98a}
+.theme-dark .whatsapp-inline{background:#20352b;border-color:#385544;color:#a8c8b1}
+.theme-dark .whatsapp-inline strong{color:#d7e7da}
+.theme-dark .whatsapp-inline span{color:#a6b8aa}
+.theme-dark .table-service>span{background:#3b392d;color:#dfc78d}
+.theme-dark .hours-open{color:#9bc7a4}
+.theme-dark .hours-closed,.theme-dark .page-footer{color:#87958b}
+.theme-dark .whatsapp-setup>p:not(.eyebrow){color:#aab6ad}
+.theme-dark .connection-status{color:#a6b1a8}
+.theme-dark .portal-link{background:transparent}
+.theme-dark .toast-message{box-shadow:0 8px 30px rgba(0,0,0,.25);color:#c4dfcb}
+.theme-dark .toast-message>button{color:#b3c1b7}
+.theme-dark .modal-backdrop{background:rgba(4,12,8,.68)}
+.theme-dark .appointment-modal input,.theme-dark .appointment-modal select{background:#16211b}
+.theme-dark .demo-badge{background:#29372f;color:#bdc8bf}
+.theme-dark .demo-badge>span{background:#f1c779}
+.theme-dark .theme-toggle{background:#202c25;border-color:#3b4a40;color:#e1e9e3}
+
+@media (max-width:1180px){
+  .sidebar{width:220px;flex-basis:220px}
+  .page-content{padding:29px 25px 20px}
+  .topbar{padding:0 25px}
+  .dashboard-grid{grid-template-columns:minmax(0,1.45fr) minmax(235px,.8fr);gap:13px}
+  .appointment-row{grid-template-columns:47px 31px minmax(95px,1fr) auto 65px 22px;gap:7px}
+  .appointment-price{font-size:8px}
+}
+@media (max-width:940px){
+  .sidebar{width:204px;flex-basis:204px;padding-inline:12px}
+  .dashboard-grid{grid-template-columns:1fr}
+  .right-rail{display:grid;grid-template-columns:1fr 1fr}
+  .whatsapp-inline{grid-column:1/-1}
+}
+@media (max-width:700px){
+  .sidebar{position:fixed;left:0;top:0;width:270px;height:100dvh;min-height:0;transform:translateX(-102%);transition:transform .2s ease;box-shadow:none}
+  .sidebar-open{transform:translateX(0);box-shadow:18px 0 45px rgba(12,35,27,.18)}
+  .nav-scrim{position:fixed;inset:0;z-index:19;display:block;border:0;background:rgba(19,40,32,.35)}
+  .mobile-menu-button{display:inline-grid;margin-left:-8px}
+  .topbar{height:58px;padding:0 15px;gap:10px}
+  .breadcrumb{flex:1;gap:7px;font-size:10px}
+  .breadcrumb>span:first-child{display:none}
+  .breadcrumb-divider{display:none}
+  .topbar-actions{gap:8px}
+  .demo-badge{padding:5px 7px;font-size:8px}
+  .page-content{padding:24px 15px 18px}
+  .page-heading{align-items:flex-start;margin-bottom:19px}
+  .page-heading h1{font-size:24px}
+  .page-subtitle{max-width:240px;font-size:10px}
+  .page-heading>.primary-button{height:35px;padding:0 10px;font-size:9px}
+  .metric-grid{gap:8px;margin-bottom:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .metric-card{min-height:111px;padding:12px}
+  .metric-card:last-child{grid-column:1/-1;min-height:95px}
+  .metric-top{font-size:9px}
+  .metric-icon{width:27px;height:27px}
+  .metric-value{margin-top:10px;font-size:22px}
+  .metric-value-currency{font-size:20px}
+  .metric-foot{font-size:8px}
+  .agenda-header{align-items:flex-start;padding:13px 12px 10px}
+  .agenda-header h2{font-size:13px}
+  .agenda-date-control{gap:1px}
+  .agenda-date-control>span{min-width:98px;font-size:9px}
+  .filter-row{padding-inline:10px}
+  .filter-chip{padding-inline:7px;font-size:8px}
+  .appointments-list{padding-inline:10px}
+  .appointment-row{min-height:66px;grid-template-columns:43px 30px minmax(90px,1fr) 22px;gap:6px}
+  .appointment-time strong{font-size:10px}
+  .appointment-details strong{font-size:9px}
+  .appointment-details>span{font-size:8px}
+  .appointment-row .status-pill{grid-column:3;grid-row:2;margin-top:-12px;font-size:7px;padding:3px 5px}
+  .appointment-price{display:none}
+  .row-more{grid-column:4;grid-row:1/3}
+  .right-rail{grid-template-columns:1fr}
+  .whatsapp-inline{grid-column:auto}
+  .module-panel{padding:14px 12px}
+  .module-panel-heading{align-items:flex-start}
+  .module-panel-heading .secondary-button,.module-panel-heading .primary-button{height:33px;padding-inline:9px;font-size:9px}
+  .hours-row{grid-template-columns:1fr 1fr 66px;font-size:10px}
+  .data-table th{font-size:7px}
+  .data-table td{font-size:9px}
+  .page-footer{font-size:8px}
+}
+@media (max-width:390px){
+  .demo-badge{display:none}
+  .portal-link{width:32px;height:32px;padding:0;gap:0;font-size:0}
+  .topbar-actions{gap:4px}
+  .page-content{padding-inline:11px}
+  .page-heading>.primary-button{gap:5px;padding-inline:8px}
+  .appointment-row{grid-template-columns:39px 28px minmax(82px,1fr) 20px;gap:5px}
+  .client-avatar{width:28px;height:28px;flex-basis:28px}
+}

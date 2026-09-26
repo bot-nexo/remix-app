@@ -1,28 +1,29 @@
-import { useState, useEffect } from "react";
-import BackButton from "../ui/BackButton";
-import { Calendar, Clock, RefreshCw, CalendarOff, CalendarSync, ArrowRight } from "lucide-react";
-import { obtenerActivas } from "../../services/misCitas";
+import { ArrowRight, Calendar, CalendarOff, CalendarSync, Clock, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useToast } from '../../contexts/ToastContext';
+import { obtenerActivas } from "../../services/misCitas";
+import BackButton from "../ui/BackButton";
 
 interface Props {
     onVolver: () => void;
     idCliente: string;
+    bookingToken: string;
     onSeleccionarCita: (cita: any) => void;
 }
 
-export default function PasoModificarCita({ onVolver, idCliente, onSeleccionarCita }: Props) {
+export default function PasoModificarCita({ onVolver, idCliente, bookingToken, onSeleccionarCita }: Props) {
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [citas, setCitas] = useState<any[]>([]);
 
     useEffect(() => {
-        cargarCitas();
-    }, []);
+        if (idCliente && bookingToken) cargarCitas();
+    }, [idCliente, bookingToken]);
 
     const cargarCitas = async () => {
         try {
             setLoading(true);
-            const data = await obtenerActivas(idCliente);
+            const data = await obtenerActivas(bookingToken);
             if (data) {
                 setCitas(data);
             } else {

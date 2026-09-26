@@ -266,6 +266,12 @@ Mensaje entrante
 | `EVOLUTION_API_URL` | **Sí** | URL base de tu Evolution API |
 | `EVOLUTION_API_KEY` | **Sí** | API Key de Evolution API |
 | `EVOLUTION_INSTANCE_NAME` | **Sí** | Nombre de la instancia en Evolution API |
+| `SUPABASE_URL` | **Sí** | URL del proyecto Supabase |
+| `SUPABASE_ANON_KEY` | **Sí** | Clave anon para validar sesiones del panel |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Sí** | Clave server-side para citas, clientes y bot |
+| `WHATSAPP_ADMIN_USER_ID` | **Sí** | UUID del propietario autorizado |
+| `BOOKING_LINK_SECRET` | **Sí** | Secreto largo para firmar enlaces de reserva |
+| `FRONTEND_ORIGINS` | **Sí** | Orígenes del frontend separados por comas |
 
 ---
 

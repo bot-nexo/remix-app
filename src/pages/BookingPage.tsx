@@ -1,43 +1,47 @@
 import { useEffect, useState } from 'react';
-import { obtenerHorariosDisponibles } from '../services/disponibilidadService';
-import { crearCita } from '../services/citasService';
-import { DatosCliente, EmpresaConfig, Paso, Servicio } from '../types/types';
-import { obtenerEmpresaConfig } from '../services/empresaService';
+import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { formatearPrecio } from '../functions';
-import { useAuth } from '../contexts/AuthContext';
+import { crearCita } from '../services/citasService';
+import { obtenerHorariosDisponibles } from '../services/disponibilidadService';
+import { obtenerEmpresaConfig } from '../services/empresaService';
+import { DatosCliente, EmpresaConfig, Paso, Servicio } from '../types/types';
 
+import EnDesarrollo from '../components/booking/EnDesarrollo';
 import MenuAgenda from '../components/booking/MenuAgenda';
-import PasoServicio from '../components/booking/PasoServicio';
+import PasoCancelarCita from '../components/booking/PasoCancelarCita';
+import PasoConsultarCita from '../components/booking/PasoConsultarCita';
+import PasoDatosCliente from '../components/booking/PasoDatosCliente';
+import PasoExito from '../components/booking/PasoExito';
 import PasoFecha from '../components/booking/PasoFecha';
 import PasoHora from '../components/booking/PasoHora';
-import PasoDatosCliente from '../components/booking/PasoDatosCliente';
-import PasoResumen from '../components/booking/PasoResumen';
-import PasoExito from '../components/booking/PasoExito';
-import PasoInformacionEmpresa from '../components/booking/PasoInformacionEmpresa';
-import PasoServiciosPrecios from '../components/booking/PasoServiciosPrecios';
-import EnDesarrollo from '../components/booking/EnDesarrollo';
-import PasoConsultarCita from '../components/booking/PasoConsultarCita';
-import PasoCancelarCita from '../components/booking/PasoCancelarCita';
-import PasoModificarCita from '../components/booking/PasoModificarCita';
 import PasoHumano from '../components/booking/PasoHumano';
+import PasoInformacionEmpresa from '../components/booking/PasoInformacionEmpresa';
+import PasoModificarCita from '../components/booking/PasoModificarCita';
+import PasoResumen from '../components/booking/PasoResumen';
+import PasoServicio from '../components/booking/PasoServicio';
+import PasoServiciosPrecios from '../components/booking/PasoServiciosPrecios';
 import { reagendarCita } from '../services/misCitas';
 
 export default function BookingPage() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const clienteIdFromUrl = urlParams.get('id') || '2c0e4e3d-817f-47e3-bb1d-123d953bbdd7';
+  const [customerAccess] = useState<{ id: string; token: string } | null>(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    const token = urlParams.get('token');
+    if (id && token) {
+      localStorage.setItem('angel_cliente_id', id);
+      localStorage.setItem('angel_booking_token', token);
+      return { id, token };
+    }
+    const savedId = localStorage.getItem('angel_cliente_id');
+    const savedToken = localStorage.getItem('angel_booking_token');
+    return savedId && savedToken ? { id: savedId, token: savedToken } : null;
+  });
+  const idCliente = customerAccess?.id || null;
+  const bookingToken = customerAccess?.token || '';
   const { showToast } = useToast();
   const { user, signOut } = useAuth();
   const [empresa, setEmpresa] = useState<EmpresaConfig | null>(null);
-
-  // Capturar id del cliente: URL > localStorage > null
-  const [idCliente, setIdCliente] = useState<string | null>(() => {
-    if (clienteIdFromUrl) {
-      localStorage.setItem('angel_cliente_id', clienteIdFromUrl);
-      return clienteIdFromUrl;
-    }
-    return localStorage.getItem('angel_cliente_id');
-  });
   const [loading, setLoading] = useState(true);
   const colorPrimario = empresa?.color_primario || '#1083b9ff';
   const colorSecundario = empresa?.color_secundario || '#056196ff';
@@ -61,7 +65,7 @@ export default function BookingPage() {
   }, [user]);
 
   // Si no hay idCliente, mostrar error
-  if (!idCliente) {
+  if (!idCliente || !bookingToken) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#0a0a0a' }}>
         <div className="text-center max-w-sm">
@@ -69,7 +73,7 @@ export default function BookingPage() {
             <span className="text-2xl">⚠️</span>
           </div>
           <h2 className="text-lg font-bold text-white mb-2">Enlace no válido</h2>
-          <p className="text-sm text-slate-400">No se encontró tu identificación de cliente. Por favor accede desde el enlace proporcionado por WhatsApp.</p>
+          <p className="text-sm text-slate-400">Abre el enlace seguro que recibiste por WhatsApp para consultar o reservar tus citas.</p>
         </div>
       </div>
     );
@@ -101,7 +105,7 @@ export default function BookingPage() {
       setCargandoHoras(true);
       setPaso('hora');
       setHoraSeleccionada('');
-      const slots = await obtenerHorariosDisponibles(fechaSeleccionada, servicioSeleccionado.duracion_minutos);
+      const slots = await obtenerHorariosDisponibles(fechaSeleccionada, servicioSeleccionado.id, bookingToken, citaAModificar?.id);
       setHorasDisponibles(slots);
     } catch (err) { console.error(err); showToast('No pudimos obtener los horarios.', 'error'); }
     finally { setCargandoHoras(false); }
@@ -115,7 +119,7 @@ export default function BookingPage() {
   function seleccionarCitaParaReagendar(cita: any) {
     setCitaAModificar(cita);
     setServicioSeleccionado({ ...cita.servicios, duracion_minutos: cita.servicios?.duracion_minutos || cita.duracion_servicio || 30 });
-    if (cita.cliente_nombre) { setCliente({ id: cita.cliente_id || '', nombre: cita.cliente_nombre || '', telefono: cita.cliente_telefono || '' }); }
+    if (cita.cliente_nombre) { setCliente({ id: cita.cliente_id || '', nombre: cita.cliente_nombre || '', telefono: cita.cliente_numero || '' }); }
     setPaso('fecha');
   }
 
@@ -124,10 +128,10 @@ export default function BookingPage() {
     try {
       setGuardandoCita(true);
       if (citaAModificar) {
-        await reagendarCita(citaAModificar.id, fechaSeleccionada, horaSeleccionada, servicioSeleccionado.duracion_minutos);
+        await reagendarCita(citaAModificar.id, fechaSeleccionada, horaSeleccionada, bookingToken);
         showToast('Cita reagendada con éxito', 'success');
       } else {
-        await crearCita({ servicioId: servicioSeleccionado.id, clienteId: idCliente, nombreCliente: cliente.nombre, telefonoCliente: cliente.telefono, fechaInicio: fechaSeleccionada, horaInicio: horaSeleccionada, horaFin: '', duracionMinutos: servicioSeleccionado.duracion_minutos });
+        await crearCita({ servicioId: servicioSeleccionado.id, nombreCliente: cliente.nombre, telefonoCliente: cliente.telefono, fechaInicio: fechaSeleccionada, horaInicio: horaSeleccionada }, bookingToken);
       }
       setPaso('exito');
     } catch (err) { console.error(err); setErrorGuardado('Ocurrió un error al procesar tu cita.'); showToast('Error al procesar tu cita.', 'error'); }
@@ -171,9 +175,9 @@ export default function BookingPage() {
         {paso === 'confirmar' && servicioSeleccionado && <PasoResumen servicio={servicioSeleccionado} fecha={fechaSeleccionada} hora={horaSeleccionada} cliente={cliente} guardando={guardandoCita} errorGuardado={errorGuardado} onConfirmar={confirmarYGuardarReserva} onVolver={() => setPaso('datos')} formatearPrecio={formatearPrecio} />}
         {paso === 'exito' && servicioSeleccionado && <PasoExito servicio={servicioSeleccionado} fecha={fechaSeleccionada} hora={horaSeleccionada} cliente={cliente} onNuevaReserva={() => { setPaso('menu'); setServicioSeleccionado(null); setFechaSeleccionada(''); setHoraSeleccionada(''); setCliente({ id: '', nombre: '', telefono: '' }); }} />}
         {paso === 'servicios_precios' && <PasoServiciosPrecios onVolver={() => setPaso('menu')} />}
-        {paso === 'consultar_cita' && <PasoConsultarCita onVolver={() => setPaso('menu')} idCliente={idCliente} />}
-        {paso === 'cancelar_cita' && <PasoCancelarCita onVolver={() => setPaso('menu')} idCliente={idCliente} />}
-        {paso === 'modificar_cita' && <PasoModificarCita onVolver={() => setPaso('menu')} idCliente={idCliente} onSeleccionarCita={seleccionarCitaParaReagendar} />}
+        {paso === 'consultar_cita' && <PasoConsultarCita onVolver={() => setPaso('menu')} idCliente={idCliente} bookingToken={bookingToken} />}
+        {paso === 'cancelar_cita' && <PasoCancelarCita onVolver={() => setPaso('menu')} idCliente={idCliente} bookingToken={bookingToken} />}
+        {paso === 'modificar_cita' && <PasoModificarCita onVolver={() => setPaso('menu')} idCliente={idCliente} bookingToken={bookingToken} onSeleccionarCita={seleccionarCitaParaReagendar} />}
         {paso === 'humano' && <PasoHumano onVolver={() => setPaso('menu')} empresaNombre={empresa?.nombre} />}
         {paso === 'info_empresa' && <PasoInformacionEmpresa empresa={empresa} onVolver={() => setPaso('menu')} />}
         {paso === 'en_construccion' && <EnDesarrollo onVolver={() => setPaso('menu')} />}

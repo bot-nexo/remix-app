@@ -1,6 +1,6 @@
-import { ArrowRight } from "lucide-react";
-import { EmpresaConfig } from "../../services/empresaService";
 import { OPCIONES_MENU } from "@/src/arreglos";
+import { ArrowRight, Calendar, CalendarOff, CalendarSync, MapPin, MessageCircle, Scissors, Search } from "lucide-react";
+import { EmpresaConfig } from "../../services/empresaService";
 
 interface Props {
     onSeleccionarOpcion: (opcion: number) => void;
@@ -9,31 +9,51 @@ interface Props {
 
 export default function MenuAgenda({ onSeleccionarOpcion, empresa }: Props) {
     const colorPrimario = empresa?.color_primario || '#1083b9';
+    const iconos = [Scissors, Search, CalendarOff, CalendarSync, MessageCircle, MapPin];
+    const opcionesSecundarias = OPCIONES_MENU.filter((opcion) => opcion.id !== 1);
 
     return (
-        <section className="space-y-5">
-            <div className="rounded-2xl border border-white/5 p-5 backdrop-blur-sm" style={{ background: `linear-gradient(135deg, ${colorPrimario}10, rgba(255,255,255,0.02))` }}>
-                <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: `${colorPrimario}20` }}>💅</div>
-                    <div>
-                        <h2 className="text-lg font-bold text-white">¡Hola! Soy <span style={{ color: colorPrimario }}>{empresa?.nom_bot || "Mia"}</span></h2>
-                        <p className="text-xs text-slate-400 mt-0.5">Tu asistente de {empresa?.nombre || "Angel Nails"}</p>
-                    </div>
+        <section className="space-y-4">
+            <div className="flex items-center gap-3 pb-1">
+                <img src={empresa?.logo_url || '/logo.svg'} alt="" className="h-12 w-12 shrink-0 object-contain" />
+                <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase text-slate-500">{empresa?.nombre || 'Angel Nails'}</p>
+                    <h2 className="mt-1 text-lg font-semibold text-white">Hola, soy <span style={{ color: colorPrimario }}>{empresa?.nom_bot || 'Mia'}</span></h2>
                 </div>
-                <p className="mt-3 text-sm text-slate-400 leading-relaxed">¿En qué te puedo ayudar? Elige una opción:</p>
             </div>
-            <div className="space-y-2">
-                {OPCIONES_MENU?.map((opt) => (
+
+            {OPCIONES_MENU[0] && (
+                <button
+                    type="button"
+                    onClick={() => onSeleccionarOpcion(OPCIONES_MENU[0].id)}
+                    className="group flex min-h-24 w-full items-center gap-4 rounded-xl border p-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                    style={{ backgroundColor: colorPrimario, borderColor: `${colorPrimario}CC` }}
+                >
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-black/10 text-white">
+                        <Calendar size={23} strokeWidth={1.8} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                        <span className="block text-base font-semibold text-white">Agendar una cita</span>
+                        <span className="mt-1 block text-xs text-white/80">Elige servicio, día y hora</span>
+                    </span>
+                    <ArrowRight size={19} className="shrink-0 text-white transition-transform group-hover:translate-x-1" />
+                </button>
+            )}
+
+            <div className="grid grid-cols-2 gap-2.5">
+                {opcionesSecundarias.map((opt, index) => {
+                    const Icon = iconos[index];
+                    return (
                     <button key={opt.id} type="button" onClick={() => onSeleccionarOpcion(opt.id)}
-                        className="w-full flex items-center gap-4 rounded-2xl p-4 text-left transition-all duration-200 bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] hover:border-white/10 active:scale-[0.98]">
-                        <div className="w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: `${colorPrimario}12` }}>{opt.icono}</div>
-                        <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-semibold text-white">{opt.titulo}</h3>
-                            <p className="text-[11px] text-slate-500 mt-0.5">{opt.desc}</p>
-                        </div>
-                        <ArrowRight size={16} className="text-slate-600 shrink-0" />
+                        className="flex min-h-32 flex-col items-start rounded-xl border border-white/10 bg-white/[0.035] p-3.5 text-left transition-colors hover:border-white/20 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
+                        <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg" style={{ color: colorPrimario, background: `${colorPrimario}1A` }}>
+                            <Icon size={18} strokeWidth={1.8} />
+                        </span>
+                        <span className="text-xs font-semibold leading-snug text-white">{opt.titulo}</span>
+                        <span className="mt-1 text-[10px] leading-snug text-slate-400">{opt.desc}</span>
                     </button>
-                ))}
+                    );
+                })}
             </div>
         </section>
     );

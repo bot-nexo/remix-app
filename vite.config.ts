@@ -49,9 +49,9 @@
 
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
@@ -86,11 +86,11 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       proxy: {
-        '/evolution-api': {
-          target: 'http://localhost:8480',
+        '/autoresponder-api': {
+          target: 'http://localhost:3100',
           changeOrigin: true,
           secure: false,
-          rewrite: (path) => path.replace(/^\/evolution-api/, ''),
+          rewrite: (path) => path.replace(/^\/autoresponder-api/, ''),
         },
       },
     },

@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { AlertCircle, Bot, Link2, Loader2, MessageCircle, Phone, RefreshCw, Save, Unlink } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Bot, Save, MessageCircle, Link2, Unlink, RefreshCw, Loader2, AlertCircle, Phone } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { supabase } from '../lib/supabase';
 import {
-  isEvolutionConfigured,
-  createInstance,
-  getQRCode,
-  getConnectionState,
-  logoutInstance,
-  fetchInstances,
-  type InstanceInfo,
+    createInstance,
+    fetchInstances,
+    getConnectionState,
+    getQRCode,
+    isEvolutionConfigured,
+    logoutInstance,
+    type InstanceInfo,
 } from '../services/evolutionService';
 
 type ConnectionStatus = 'checking' | 'connected' | 'disconnected' | 'connecting' | 'error';
@@ -359,7 +359,7 @@ export default function Configuracion() {
                 <div>
                   <p className="text-sm font-medium text-red-700 dark:text-red-400">Evolution API no configurada</p>
                   <p className="text-xs text-red-600/70 dark:text-red-400/60 mt-1">
-                    Agrega las variables <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">VITE_EVOLUTION_URL</code> y <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">VITE_EVOLUTION_KEY</code> en tu archivo <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">.env</code>.
+                    Configura <code className="bg-red-100 dark:bg-red-900/30 px-1 rounded">VITE_AUTORESPONDER_URL</code> con la URL pública del microservicio. La clave de Evolution debe permanecer solo en el servidor.
                   </p>
                 </div>
               </div>

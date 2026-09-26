@@ -25,6 +25,7 @@ const express = require('express');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
 // ─── Constantes de entorno ────────────────────────────────────────────────────
@@ -33,12 +34,19 @@ const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8480';
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE_NAME || 'default';
+const WHATSAPP_ADMIN_USER_ID = process.env.WHATSAPP_ADMIN_USER_ID || '';
+const BOOKING_LINK_SECRET = process.env.BOOKING_LINK_SECRET || '';
+const FRONTEND_ORIGINS = new Set(
+  (process.env.FRONTEND_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean)
+);
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY);
 
 // ─── Ruta al archivo de configuración ────────────────────────────────────────
 const CONFIG_PATH = path.join(__dirname, 'config.json');
@@ -95,6 +103,36 @@ function normalizeText(text) {
  */
 function isCerrarCommand(text) {
   return normalizeText(text.trim()) === 'cerrar.';
+}
+
+function createBookingToken(clientId) {
+  if (!BOOKING_LINK_SECRET) return '';
+  const payload = Buffer.from(JSON.stringify({
+    sub: clientId,
+    exp: Math.floor(Date.now() / 1000) + (180 * 24 * 60 * 60),
+  })).toString('base64url');
+  const signature = crypto.createHmac('sha256', BOOKING_LINK_SECRET).update(payload).digest('base64url');
+  return `${payload}.${signature}`;
+}
+
+function verifyBookingToken(token) {
+  if (!BOOKING_LINK_SECRET || typeof token !== 'string' || token.length > 2048) return null;
+  const [payload, signature, ...extra] = token.split('.');
+  if (!payload || !signature || extra.length) return null;
+
+  try {
+    const expected = crypto.createHmac('sha256', BOOKING_LINK_SECRET).update(payload).digest();
+    const actual = Buffer.from(signature, 'base64url');
+    if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) return null;
+
+    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (typeof claims.sub !== 'string' || !claims.sub || !Number.isInteger(claims.exp) || claims.exp <= Date.now() / 1000) {
+      return null;
+    }
+    return claims;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -206,12 +244,19 @@ function buildWelcomeMessage(empresa, clientId = '') {
   lines.push('Si necesitas hablar con un asesor, escribe *agente* y te atenderemos pronto. 😊');
   lines.push('');
 
-  // Link al portal con el id del cliente
+  // El enlace firmado funciona como credencial limitada del cliente.
   if (clientId) {
-    const url = `${PWA_URL}?id=${clientId}`;
-    lines.push(`Para consultar disponibilidad, agendar, cancelar o modificar tu cita en línea, ingresa a nuestro sitio web:`);
-    lines.push('');
-    lines.push(`👉 ${url}`);
+    const token = createBookingToken(clientId);
+    if (token) {
+      const url = new URL(PWA_URL);
+      url.searchParams.set('id', clientId);
+      url.searchParams.set('token', token);
+      lines.push('Para consultar disponibilidad, agendar, cancelar o modificar tu cita en línea, ingresa a nuestro sitio web:');
+      lines.push('');
+      lines.push(`👉 ${url.toString()}`);
+    } else {
+      lines.push('Para recibir tu enlace seguro de reservas, escribe *agente* y te ayudaremos.');
+    }
   }
 
   return lines.join('\n');
@@ -327,6 +372,7 @@ async function loadEmpresaData() {
     const { data, error } = await supabase
       .from('empresa')
       .select('*')
+      .eq('user_id', WHATSAPP_ADMIN_USER_ID)
       .limit(1);
 
     if (error) {
@@ -429,6 +475,7 @@ async function getBotConfigFromDB() {
     const { data, error } = await supabase
       .from('configuracion')
       .select('clave, valor')
+      .eq('user_id', WHATSAPP_ADMIN_USER_ID)
       .in('clave', ['bot_activo', 'telefono_profesional']);
 
     if (error) {
@@ -686,7 +733,287 @@ function requireAdminKey(req, res, next) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const app = express();
+app.use((req, res, next) => {
+  const origin = req.get('Origin');
+  if (origin && !FRONTEND_ORIGINS.has(origin)) {
+    return res.status(403).json({ error: 'Origen no permitido.' });
+  }
+
+  if (origin) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Vary', 'Origin');
+    res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  }
+
+  if (req.method === 'OPTIONS') return res.sendStatus(origin ? 204 : 403);
+  next();
+});
 app.use(express.json());
+
+async function requireBusinessOwner(req, res, next) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !WHATSAPP_ADMIN_USER_ID) {
+    return res.status(503).json({ error: 'Falta configurar el acceso administrativo de WhatsApp.' });
+  }
+
+  const accessToken = req.get('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!accessToken) return res.status(401).json({ error: 'Sesión requerida.' });
+
+  try {
+    const { data, error } = await supabaseAuth.auth.getUser(accessToken);
+    if (error || !data.user) return res.status(401).json({ error: 'Sesión inválida o expirada.' });
+    if (data.user.id !== WHATSAPP_ADMIN_USER_ID) {
+      return res.status(403).json({ error: 'No tienes permiso para administrar WhatsApp.' });
+    }
+    next();
+  } catch (error) {
+    console.error('[AUTH] No se pudo validar la sesión:', error.message);
+    return res.status(503).json({ error: 'No se pudo validar la sesión.' });
+  }
+}
+
+async function proxyEvolution(res, method, endpoint, payload, mapResponse = (data) => data) {
+  if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
+    return res.status(503).json({ error: 'Evolution API no está configurada en el servidor.' });
+  }
+
+  try {
+    const response = await axios.request({
+      method,
+      url: `${EVOLUTION_API_URL.replace(/\/$/, '')}${endpoint}`,
+      headers: { apikey: EVOLUTION_API_KEY },
+      data: payload,
+      timeout: 10_000,
+    });
+    return res.status(response.status).json(mapResponse(response.data));
+  } catch (error) {
+    const status = error.response?.status || 502;
+    console.error(`[EVOLUTION] Error en ${method} ${endpoint}: HTTP ${status}`);
+    return res.status(status).json({ error: 'No se pudo completar la operación de WhatsApp.' });
+  }
+}
+
+const evolutionInstance = encodeURIComponent(EVOLUTION_INSTANCE);
+app.post('/api/evolution/instance/create', requireBusinessOwner, (req, res) =>
+  proxyEvolution(res, 'POST', '/instance/create', {
+    instanceName: EVOLUTION_INSTANCE,
+    qrcode: true,
+    integration: 'WHATSAPP-BAILEYS',
+  }, (data) => ({ instance: data.instance }))
+);
+app.get('/api/evolution/instance/connect', requireBusinessOwner, (req, res) =>
+  proxyEvolution(res, 'GET', `/instance/connect/${evolutionInstance}`)
+);
+app.get('/api/evolution/instance/connection-state', requireBusinessOwner, (req, res) =>
+  proxyEvolution(res, 'GET', `/instance/connectionState/${evolutionInstance}`)
+);
+app.get('/api/evolution/instances', requireBusinessOwner, (req, res) =>
+  proxyEvolution(res, 'GET', `/instance/fetchInstances?instanceName=${evolutionInstance}`)
+);
+app.put('/api/evolution/instance/restart', requireBusinessOwner, (req, res) =>
+  proxyEvolution(res, 'PUT', `/instance/restart/${evolutionInstance}`)
+);
+app.delete('/api/evolution/instance/logout', requireBusinessOwner, (req, res) =>
+  proxyEvolution(res, 'DELETE', `/instance/logout/${evolutionInstance}`)
+);
+app.delete('/api/evolution/instance/delete', requireBusinessOwner, (req, res) =>
+  proxyEvolution(res, 'DELETE', `/instance/delete/${evolutionInstance}`)
+);
+
+function requireBookingAccess(req, res, next) {
+  if (!SUPABASE_SERVICE_ROLE_KEY || !BOOKING_LINK_SECRET || !WHATSAPP_ADMIN_USER_ID) {
+    return res.status(503).json({ error: 'El acceso seguro a reservas no está configurado.' });
+  }
+
+  const token = req.get('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const claims = verifyBookingToken(token);
+  if (!claims || !/^[0-9a-f-]{36}$/i.test(claims.sub)) {
+    return res.status(401).json({ error: 'El enlace de reserva no es válido o expiró.' });
+  }
+
+  req.bookingClientId = claims.sub;
+  next();
+}
+
+function isValidBookingDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value;
+}
+
+function timeToMinutes(value) {
+  const [hours, minutes] = (value || '').split(':').map(Number);
+  return hours * 60 + (minutes || 0);
+}
+
+function minutesToTime(value) {
+  return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
+}
+
+const ACTIVE_APPOINTMENT_STATES = new Set(['AGENDADO', 'AGENDADA', 'PENDIENTE', 'EN_ESPERA']);
+
+async function getBookingSlots(date, serviceId, clientId, excludeAppointmentId = '') {
+  if (!isValidBookingDate(date) || !/^[0-9a-f-]{36}$/i.test(serviceId || '')) {
+    return { error: 'Fecha o servicio inválido.' };
+  }
+
+  const { data: service, error: serviceError } = await supabase
+    .from('servicios')
+    .select('duracion_minutos')
+    .eq('id', serviceId)
+    .eq('user_id', WHATSAPP_ADMIN_USER_ID)
+    .eq('activo', true)
+    .maybeSingle();
+  if (serviceError) return { databaseError: serviceError };
+  if (!service || !Number.isInteger(service.duracion_minutos) || service.duracion_minutos <= 0) {
+    return { error: 'Servicio no disponible.' };
+  }
+
+  if (excludeAppointmentId) {
+    const { data: appointment, error } = await supabase
+      .from('citas')
+      .select('id, estado')
+      .eq('id', excludeAppointmentId)
+      .eq('cliente_id', clientId)
+      .eq('user_id', WHATSAPP_ADMIN_USER_ID)
+      .maybeSingle();
+    if (error) return { databaseError: error };
+    if (!appointment || !ACTIVE_APPOINTMENT_STATES.has(appointment.estado?.toUpperCase())) {
+      return { error: 'La cita seleccionada no pertenece a este enlace o no está activa.' };
+    }
+  }
+
+  const [scheduleResult, blocksResult, appointmentsResult] = await Promise.all([
+    supabase.from('horario_atencion').select('hora_inicio, hora_fin, activo')
+      .eq('user_id', WHATSAPP_ADMIN_USER_ID).eq('fecha', date).eq('activo', true).maybeSingle(),
+    supabase.from('bloqueos_agenda').select('hora_inicio, hora_fin, bloqueo_completo')
+      .eq('user_id', WHATSAPP_ADMIN_USER_ID).eq('fecha', date),
+    supabase.from('citas').select('id, hora_inicio, hora_fin, estado')
+      .eq('user_id', WHATSAPP_ADMIN_USER_ID).eq('fecha_inicio', date),
+  ]);
+
+  const queryError = scheduleResult.error || blocksResult.error || appointmentsResult.error;
+  if (queryError) return { databaseError: queryError };
+  if (!scheduleResult.data?.activo) return { slots: [] };
+
+  const opening = timeToMinutes(scheduleResult.data.hora_inicio);
+  const closing = timeToMinutes(scheduleResult.data.hora_fin);
+  const duration = service.duracion_minutos;
+  const blocks = blocksResult.data || [];
+  const appointments = (appointmentsResult.data || []).filter((appointment) =>
+    appointment.id !== excludeAppointmentId && ACTIVE_APPOINTMENT_STATES.has(appointment.estado?.toUpperCase())
+  );
+  const slots = [];
+
+  for (let start = opening; start + duration <= closing; start += duration) {
+    const end = start + duration;
+    const blocked = blocks.some((block) => block.bloqueo_completo ||
+      (start < timeToMinutes(block.hora_fin) && end > timeToMinutes(block.hora_inicio)));
+    const occupied = appointments.some((appointment) =>
+      start < timeToMinutes(appointment.hora_fin) && end > timeToMinutes(appointment.hora_inicio)
+    );
+    if (!blocked && !occupied) slots.push(minutesToTime(start));
+  }
+
+  return { slots };
+}
+
+app.get('/api/booking/availability', requireBookingAccess, async (req, res) => {
+  const result = await getBookingSlots(req.query.date, req.query.serviceId, req.bookingClientId, req.query.excludeAppointmentId);
+  if (result.databaseError) return res.status(503).json({ error: 'No se pudo consultar la disponibilidad.' });
+  if (result.error) return res.status(400).json({ error: result.error });
+  return res.json({ slots: result.slots });
+});
+
+app.get('/api/booking/appointments', requireBookingAccess, async (req, res) => {
+  const { data, error } = await supabase.from('citas').select(`
+    *,
+    servicios ( id, nombre, valor, duracion_minutos )
+  `)
+    .eq('user_id', WHATSAPP_ADMIN_USER_ID)
+    .eq('cliente_id', req.bookingClientId)
+    .order('fecha_inicio', { ascending: false })
+    .order('hora_inicio', { ascending: false })
+    .limit(100);
+  if (error) return res.status(503).json({ error: 'No se pudieron consultar tus citas.' });
+
+  const appointments = req.query.active === 'true'
+    ? (data || []).filter((appointment) => ACTIVE_APPOINTMENT_STATES.has(appointment.estado?.toUpperCase()))
+    : data || [];
+  return res.json({ appointments });
+});
+
+app.post('/api/booking/appointments', requireBookingAccess, async (req, res) => {
+  const { serviceId, date, startTime, name, phone } = req.body || {};
+  if (!/^[0-9a-f-]{36}$/i.test(serviceId || '') || !isValidBookingDate(date) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime || '') ||
+      typeof name !== 'string' || !name.trim() || name.trim().length > 100 ||
+      typeof phone !== 'string' || !phone.trim() || phone.trim().length > 32) {
+    return res.status(400).json({ error: 'Completa los datos de la reserva.' });
+  }
+
+  const { data, error } = await supabase.rpc('reservar_cita_segura', {
+    p_user_id: WHATSAPP_ADMIN_USER_ID,
+    p_servicio_id: serviceId,
+    p_cliente_id: req.bookingClientId,
+    p_cliente_nombre: name.trim(),
+    p_cliente_numero: phone.trim(),
+    p_fecha: date,
+    p_hora_inicio: startTime,
+  });
+  if (error) {
+    const status = error.code === 'P0001' ? 409 : 503;
+    return res.status(status).json({ error: status === 409 ? error.message : 'No se pudo guardar la cita.' });
+  }
+  return res.status(201).json({ appointment: data });
+});
+
+app.post('/api/booking/appointments/:id/cancel', requireBookingAccess, async (req, res) => {
+  if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: 'Cita inválida.' });
+
+  const query = supabase.from('citas').select('estado')
+    .eq('id', req.params.id)
+    .eq('user_id', WHATSAPP_ADMIN_USER_ID)
+    .eq('cliente_id', req.bookingClientId);
+  const { data: cita, error: readError } = await query.maybeSingle();
+  if (readError) return res.status(503).json({ error: 'No se pudo consultar la cita.' });
+  if (!cita || !ACTIVE_APPOINTMENT_STATES.has(cita.estado?.toUpperCase())) {
+    return res.status(404).json({ error: 'No se encontró una cita activa para este enlace.' });
+  }
+
+  const { data, error } = await supabase.from('citas')
+    .update({ estado: 'CANCELADO_CLIENTE' })
+    .eq('id', req.params.id)
+    .eq('user_id', WHATSAPP_ADMIN_USER_ID)
+    .eq('cliente_id', req.bookingClientId)
+    .eq('estado', cita.estado)
+    .select('id')
+    .maybeSingle();
+  if (error) return res.status(503).json({ error: 'No se pudo cancelar la cita.' });
+  if (!data) return res.status(409).json({ error: 'La cita cambió de estado; actualiza e intenta de nuevo.' });
+  return res.json({ ok: true });
+});
+
+app.post('/api/booking/appointments/:id/reschedule', requireBookingAccess, async (req, res) => {
+  const { date, startTime } = req.body || {};
+  if (!/^[0-9a-f-]{36}$/i.test(req.params.id) || !isValidBookingDate(date) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime || '')) {
+    return res.status(400).json({ error: 'Nueva fecha u hora inválida.' });
+  }
+
+  const { data, error } = await supabase.rpc('reagendar_cita_segura', {
+    p_user_id: WHATSAPP_ADMIN_USER_ID,
+    p_cliente_id: req.bookingClientId,
+    p_cita_id: req.params.id,
+    p_fecha: date,
+    p_hora_inicio: startTime,
+  });
+  if (error) {
+    const status = error.code === 'P0001' ? 409 : 503;
+    return res.status(status).json({ error: status === 409 ? error.message : 'No se pudo reagendar la cita.' });
+  }
+  return res.json({ appointment: data });
+});
 
 // Mapeo en memoria de clientes que ya están en estado HUMANO (optimización)
 const humanStateCache = new Map();

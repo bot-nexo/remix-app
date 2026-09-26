@@ -11,6 +11,8 @@ View your app in AI Studio: https://ai.studio/apps/f657330c-af3d-477d-aae0-f2fa3
 ## Run Locally
 # 💅 Angel Nails — Sistema de Reservas
 
+> La V2 multi-negocio se desarrolla en [`v2/`](v2/) sin reemplazar todavía la V1. Estado, decisiones y pasos para retomar: [`docs/V2_PLAN.md`](docs/V2_PLAN.md).
+
 > Plataforma completa de gestión de citas y reservas online para salones de belleza y profesionales de uñas.
 
 ---
@@ -38,9 +40,7 @@ El proceso de reserva es un flujo guiado paso a paso:
 4. Escribe tu nombre y WhatsApp   →   5. Confirma   →   ✅ ¡Listo!
 ```
 
-Inmediatamente después de confirmar:
-- El **cliente recibe un WhatsApp** con los detalles de su cita.
-- La **profesional recibe una notificación por WhatsApp** con los datos del nuevo cliente.
+Al confirmar, el portal registra la cita y muestra el resumen. Las confirmaciones y recordatorios automáticos por WhatsApp quedan pendientes de una fase posterior.
 
 ---
 
@@ -142,8 +142,14 @@ Cuando un cliente reserva por primera vez, queda registrado automáticamente en 
 | Estilos | Tailwind CSS 4 |
 | Base de datos | Supabase (PostgreSQL) |
 | Autenticación | Supabase Auth |
-| Notificaciones | WhatsApp vía n8n |
+| WhatsApp | Evolution API + microservicio `whatsapp-autoresponder` |
 | Seguridad | Row Level Security (RLS) en todas las tablas |
+
+### Variables para conectar WhatsApp
+
+El frontend usa el microservicio para administrar Evolution API y atender el portal mediante enlaces firmados. En producción configura `VITE_AUTORESPONDER_URL` con la URL pública del microservicio. En `whatsapp-autoresponder/.env` configura `WHATSAPP_ADMIN_USER_ID`, `FRONTEND_ORIGINS`, `SUPABASE_SERVICE_ROLE_KEY` y `BOOKING_LINK_SECRET`. Las claves de Evolution, service role y firma solo existen en el servidor, nunca en variables `VITE_`.
+
+En una base nueva, ejecuta primero `database.sql` y luego las migraciones en orden: `20260926_align_runtime_schema.sql`, `20260926_atomic_booking_operations.sql` y `20260926_lock_down_public_appointment_tables.sql`. En una base existente, revisa los duplicados que detecta la primera migración. No apliques la última migración hasta que el microservicio tenga ambas claves server-side y esté desplegado.
 
 ---
 
@@ -166,14 +172,12 @@ Cuando un cliente reserva por primera vez, queda registrado automáticamente en 
           │  clientes        │
           └────────┬─────────┘
                    │
-              cita creada
+          API server-side firmada
                    │
                    ▼
-                  n8n
-           ┌──────┴──────┐
-           ▼              ▼
-      WhatsApp        WhatsApp
-      Cliente        Profesional
+     WhatsApp Autoresponder
+            ↕
+       Evolution API
 
          PANEL ADMINISTRATIVO
          (acceso con usuario y contraseña)
@@ -188,8 +192,8 @@ Cuando un cliente reserva por primera vez, queda registrado automáticamente en 
 
 - Todas las tablas de la base de datos tienen **Row Level Security (RLS)** activado.
 - La profesional solo puede ver y modificar **sus propios datos**.
-- El portal de reservas puede leer servicios y horarios, pero **solo puede insertar citas** — no puede leer datos de otras personas ni modificar configuraciones.
-- La verificación de disponibilidad ocurre **tanto en el frontend como en el backend** antes de confirmar cualquier cita.
+- El portal consulta y modifica citas mediante el microservicio con enlaces firmados; no accede directamente a las tablas privadas.
+- La reserva y el reagendamiento vuelven a comprobar disponibilidad dentro de una transacción para impedir solapamientos.
 
 ---
 
@@ -214,7 +218,7 @@ MVP Actual
  ├── Portal de reservas PWA
  ├── Panel administrativo
  ├── Supabase (base de datos)
- └── n8n (notificaciones WhatsApp)
+ └── WhatsApp Autoresponder + Evolution API
 
 Versión 2
  ├── Recordatorios automáticos

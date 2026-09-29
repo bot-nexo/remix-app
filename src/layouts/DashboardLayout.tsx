@@ -1,27 +1,29 @@
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 import {
-  LayoutDashboard,
-  Tags,
-  Building2,
-  Settings,
-  LogOut,
-  Moon,
-  Sun,
-  Menu,
-  X,
-  CalendarClock,
-  CalendarHeart
+    Building2,
+    CalendarClock,
+    CalendarHeart,
+    LayoutDashboard,
+    LogOut,
+    Menu,
+    Moon,
+    PanelLeftClose,
+    PanelLeftOpen,
+    Settings,
+    Sun,
+    Tags,
+    X
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function DashboardLayout() {
   const { user, loading, signOut } = useAuth();
   const { isDarkMode, toggleTheme, companyName, logoUrl } = useTheme();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopNavCollapsed, setDesktopNavCollapsed] = useState(false);
 
 
   if (loading) {
@@ -48,7 +50,7 @@ export default function DashboardLayout() {
 
   //*************************
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] flex flex-col md:flex-row">
+    <div className="admin-shell min-h-screen min-w-0 overflow-x-hidden bg-slate-50 dark:bg-[#020617] flex flex-col md:flex-row">
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0f172a] z-40 sticky top-0 backdrop-blur-xl bg-white/80 dark:bg-[#0f172a]/80">
         <div className="flex items-center gap-3">
@@ -64,21 +66,31 @@ export default function DashboardLayout() {
             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider">Panel Admin</span>
           </div>
         </div>
-        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+        <button aria-label={mobileMenuOpen ? 'Cerrar menu' : 'Abrir menu'} onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
 
       {/* Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 w-72 flex flex-col
+        fixed inset-y-0 left-0 z-50 flex w-[min(18rem,calc(100vw-1rem))] flex-col
         bg-white dark:bg-[#0f172a] border-r border-slate-200/80 dark:border-slate-800/60
         transform transition-transform duration-300 ease-out
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:relative md:translate-x-0 md:z-auto
+        md:relative md:translate-x-0 md:z-auto ${desktopNavCollapsed ? 'md:w-20' : 'md:w-72'}
       `}>
         {/* Profile Header */}
-        <div className="px-6 pt-8 pb-6 flex flex-col items-center border-b border-slate-100 dark:border-slate-800/60 hidden md:flex">
+        <div className={`relative border-b border-slate-100 dark:border-slate-800/60 hidden md:flex ${desktopNavCollapsed ? 'items-center px-3 py-5' : 'flex-col items-center px-5 pb-6 pt-7'}`}>
+          <button
+            type="button"
+            aria-label={desktopNavCollapsed ? 'Expandir navegación' : 'Colapsar navegación'}
+            aria-expanded={!desktopNavCollapsed}
+            title={desktopNavCollapsed ? 'Expandir navegación' : 'Colapsar navegación'}
+            onClick={() => setDesktopNavCollapsed((current) => !current)}
+            className={`absolute top-3 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 ${desktopNavCollapsed ? 'right-2' : 'right-3'}`}
+          >
+            {desktopNavCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          </button>
           <div className="relative mb-4">
             {logoUrl ? (
               <img src={logoUrl} alt="Logo" className="w-16 h-16 rounded-2xl object-cover shadow-lg ring-2 ring-white dark:ring-slate-800" />
@@ -89,12 +101,15 @@ export default function DashboardLayout() {
             )}
             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-white dark:border-[#0f172a]"></div>
           </div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white text-center truncate w-full">{companyName}</h2>
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold tracking-widest uppercase mt-1">Administración</span>
+          {!desktopNavCollapsed && <>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white text-center truncate w-full">{companyName}</h2>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold tracking-[0.18em] uppercase mt-1">Centro de control</span>
+          </>}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <nav className={`flex-1 py-5 space-y-1 overflow-y-auto ${desktopNavCollapsed ? 'px-2' : 'px-3'}`}>
+          {!desktopNavCollapsed && <p className="px-4 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-600">Operación</p>}
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -102,8 +117,10 @@ export default function DashboardLayout() {
                 key={item.name}
                 to={item.href}
                 onClick={closeMobileMenu}
+                title={desktopNavCollapsed ? item.name : undefined}
                 className={`
-                  flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                  group flex items-center rounded-xl py-3 text-sm font-medium transition-all duration-200
+                  ${desktopNavCollapsed ? 'justify-center px-2' : 'gap-3 px-4'}
                   ${isActive
                     ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/20'
                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
@@ -111,37 +128,55 @@ export default function DashboardLayout() {
                 `}
               >
                 <item.icon size={18} className={isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors'} />
-                <span>{item.name}</span>
+                <span className={desktopNavCollapsed ? 'sr-only' : undefined}>{item.name}</span>
               </Link>
             );
           })}
         </nav>
 
         {/* Footer */}
-        <div className="px-3 py-4 border-t border-slate-100 dark:border-slate-800/60 space-y-1">
+        <div className={`${desktopNavCollapsed ? 'mx-2' : 'mx-3'} mb-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800/60 dark:bg-slate-950/40`}>
+          <div className={`mb-2 flex items-center rounded-xl bg-white py-2.5 dark:bg-slate-900 ${desktopNavCollapsed ? 'justify-center' : 'gap-2 px-3'}`} title={desktopNavCollapsed ? 'Agenda operativa activa' : undefined}>
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.12)]" />
+            {!desktopNavCollapsed && <>
+              <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">Agenda operativa</span>
+              <span className="ml-auto text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Activa</span>
+            </>}
+          </div>
           <button
+            title={desktopNavCollapsed ? (isDarkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro') : undefined}
             onClick={toggleTheme}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-colors"
+            className={`w-full flex items-center rounded-xl py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-white hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-white ${desktopNavCollapsed ? 'justify-center px-2' : 'gap-3 px-3'}`}
           >
             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-            <span>{isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
+            <span className={desktopNavCollapsed ? 'sr-only' : undefined}>{isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
           </button>
           <button
+            title={desktopNavCollapsed ? 'Cerrar sesión' : undefined}
             onClick={() => {
               signOut();
               closeMobileMenu();
             }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+            className={`w-full flex items-center rounded-xl py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 ${desktopNavCollapsed ? 'justify-center px-2' : 'gap-3 px-3'}`}
           >
             <LogOut size={18} />
-            <span>Cerrar Sesión</span>
+            <span className={desktopNavCollapsed ? 'sr-only' : undefined}>Cerrar Sesión</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 relative overflow-y-auto h-[calc(100vh-61px)] md:h-screen">
-        <div className="p-5 md:p-8 max-w-7xl mx-auto">
+      <main className="relative h-[calc(100vh-61px)] min-w-0 flex-1 overflow-x-hidden overflow-y-auto md:h-screen">
+        <div className="admin-content mx-auto max-w-7xl min-w-0 p-4 sm:p-5 md:p-8">
+          <div className="mb-7 hidden items-center justify-between border-b border-slate-200/70 pb-4 dark:border-slate-800/70 md:flex">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-primary">Panel administrativo</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Gestiona tu agenda con calma y claridad.</p>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Sistema activo
+            </div>
+          </div>
           <Outlet />
         </div>
       </main>

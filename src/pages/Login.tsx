@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { findAngelPalette } from '../constants/angelPalettes';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export default function Login() {
   const { showToast } = useToast();
@@ -70,27 +71,19 @@ export default function Login() {
     }
   };
 
-  const colorPrimario = empresa?.color_primario || '#1083b9';
-  const colorSecundario = empresa?.color_secundario || '#056196';
+  const loginPalette = findAngelPalette(empresa?.color_primario, empresa?.color_secundario);
+  const colorPrimario = loginPalette.primary;
+  const colorSecundario = loginPalette.secondary;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-[#020617] dark:via-[#0a0f1e] dark:to-[#020617] flex flex-col items-center justify-center px-4 py-12 transition-colors duration-300">
       {/* Branding */}
       <div className="mb-8 text-center">
-        {empresa?.logo_url ? (
-          <img
-            src={empresa.logo_url}
-            alt={empresa.nombre}
-            className="mx-auto mb-4 h-20 w-20 rounded-2xl object-cover shadow-xl ring-4 ring-white/10 dark:ring-white/5"
-          />
-        ) : (
-          <div
-            className="mx-auto mb-4 h-20 w-20 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-xl"
-            style={{ background: `linear-gradient(135deg, ${colorPrimario}, ${colorSecundario})` }}
-          >
-            {empresa?.nombre?.charAt(0) || 'A'}
-          </div>
-        )}
+        <img
+          src={empresa?.logo_url || '/logo.svg'}
+          alt={empresa?.nombre || 'Angel Nails'}
+          className="mx-auto mb-4 h-20 w-20 rounded-2xl object-cover shadow-xl ring-4 ring-white/10 dark:ring-white/5"
+        />
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
           {empresa?.nombre || 'Panel Admin'}
         </h1>

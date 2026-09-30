@@ -1,10 +1,7 @@
-<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff2a85"/>
-      <stop offset="100%" stop-color="#e11d48"/>
-    </linearGradient>
-  </defs>
-  <circle cx="16" cy="16" r="15" fill="url(#g)"/>
-  <path d="M16,24 C16,24 9,19 9,14.5 C9,11.5 11.5,9.5 14,9.5 C15.5,9.5 16,10.5 16,11.5 C16,10.5 16.5,9.5 18,9.5 C20.5,9.5 23,11.5 23,14.5 C23,19 16,24 16,24 Z" fill="white"/>
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Angel Nails">
+  <rect width="32" height="32" rx="7" fill="#F8DCDD"/>
+  <path d="M2 15 C8 8 14 12 19 9 C24 7 29 10 31 14 C25 14 22 19 16 17 C10 15 6 21 2 18Z" fill="#D9827F" opacity=".8"/>
+  <text x="16" y="17" text-anchor="middle" fill="#171717" font-family="cursive" font-size="8.2" font-style="italic">Angel</text>
+  <rect x="10" y="20" width="12" height="6" rx=".8" fill="#171717"/>
+  <text x="16" y="24.2" text-anchor="middle" fill="#FFF4F2" font-family="Arial, sans-serif" font-size="2.8" font-weight="700" letter-spacing=".35">NAILS</text>
 </svg>

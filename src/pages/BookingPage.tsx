@@ -21,6 +21,8 @@ import PasoModificarCita from '../components/booking/PasoModificarCita';
 import PasoResumen from '../components/booking/PasoResumen';
 import PasoServicio from '../components/booking/PasoServicio';
 import PasoServiciosPrecios from '../components/booking/PasoServiciosPrecios';
+import { ANGEL_PALETTE_STORAGE_KEY, findAngelPalette } from '../constants/angelPalettes';
+import { bookingRequest, getBookingErrorMessage } from '../services/bookingApi';
 import { reagendarCita } from '../services/misCitas';
 
 export default function BookingPage() {
@@ -42,9 +44,11 @@ export default function BookingPage() {
   const { showToast } = useToast();
   const { user, signOut } = useAuth();
   const [empresa, setEmpresa] = useState<EmpresaConfig | null>(null);
+  const [telefonoProfesional, setTelefonoProfesional] = useState('');
   const [loading, setLoading] = useState(true);
-  const colorPrimario = empresa?.color_primario || '#1083b9ff';
-  const colorSecundario = empresa?.color_secundario || '#056196ff';
+  const palette = findAngelPalette(empresa?.color_primario, empresa?.color_secundario);
+  const colorPrimario = palette.primary;
+  const colorSecundario = palette.secondary;
   const [paso, setPaso] = useState<Paso>('menu');
   const [opcionMenu, setOpcionMenu] = useState<number | null>(null);
   const [servicioSeleccionado, setServicioSeleccionado] = useState<Servicio | null>(null);
@@ -64,6 +68,26 @@ export default function BookingPage() {
     cargarDatosIniciales();
   }, [user]);
 
+  useEffect(() => {
+    const handlePaletteChange = (event: StorageEvent) => {
+      if (event.key !== ANGEL_PALETTE_STORAGE_KEY || !event.newValue) return;
+      try {
+        const selected = JSON.parse(event.newValue) as { primary?: string; secondary?: string };
+        const nextPalette = findAngelPalette(selected.primary, selected.secondary);
+        setEmpresa((current) => current ? {
+          ...current,
+          color_primario: nextPalette.primary,
+          color_secundario: nextPalette.secondary,
+        } : current);
+      } catch {
+        // Ignore malformed local storage values and keep the persisted database palette.
+      }
+    };
+
+    window.addEventListener('storage', handlePaletteChange);
+    return () => window.removeEventListener('storage', handlePaletteChange);
+  }, []);
+
   // Si no hay idCliente, mostrar error
   if (!idCliente || !bookingToken) {
     return (
@@ -82,8 +106,12 @@ export default function BookingPage() {
   async function cargarDatosIniciales() {
     try {
       setLoading(true);
-      const [empresaData] = await Promise.all([obtenerEmpresaConfig()]);
+      const [empresaData, bookingContext] = await Promise.all([
+        obtenerEmpresaConfig(),
+        bookingRequest<{ professionalPhone?: string }>('/context', bookingToken),
+      ]);
       setEmpresa(empresaData);
+      setTelefonoProfesional(bookingContext.professionalPhone || '');
     } catch (err) {
       console.error(err);
       showToast('No pudimos cargar la información inicial.', 'error');
@@ -107,7 +135,7 @@ export default function BookingPage() {
       setHoraSeleccionada('');
       const slots = await obtenerHorariosDisponibles(fechaSeleccionada, servicioSeleccionado.id, bookingToken, citaAModificar?.id);
       setHorasDisponibles(slots);
-    } catch (err) { console.error(err); showToast('No pudimos obtener los horarios.', 'error'); }
+    } catch (err) { console.error(err); showToast(getBookingErrorMessage(err, 'No pudimos obtener los horarios.'), 'error'); }
     finally { setCargandoHoras(false); }
   }
 
@@ -134,7 +162,12 @@ export default function BookingPage() {
         await crearCita({ servicioId: servicioSeleccionado.id, nombreCliente: cliente.nombre, telefonoCliente: cliente.telefono, fechaInicio: fechaSeleccionada, horaInicio: horaSeleccionada }, bookingToken);
       }
       setPaso('exito');
-    } catch (err) { console.error(err); setErrorGuardado('Ocurrió un error al procesar tu cita.'); showToast('Error al procesar tu cita.', 'error'); }
+    } catch (err) {
+      console.error(err);
+      const message = getBookingErrorMessage(err, 'No se pudo procesar la cita.');
+      setErrorGuardado(message);
+      showToast(message, 'error');
+    }
     finally { setGuardandoCita(false); }
   }
 
@@ -149,11 +182,16 @@ export default function BookingPage() {
     );
   }
 
-  const bg = `linear-gradient(180deg, ${colorPrimario}06 0%, #0a0a0a 30%)`;
-  const cssVars = { '--brand-primary': colorPrimario, '--brand-secondary': colorSecundario } as React.CSSProperties;
+  const cssVars = {
+    '--brand-primary': colorPrimario,
+    '--brand-secondary': colorSecundario,
+    '--brand-blush': palette.blush,
+    '--brand-gold': palette.gold,
+    '--brand-ink': palette.ink,
+  } as React.CSSProperties;
 
   return (
-    <main className="min-h-screen text-slate-100 selection:bg-white/10" style={{ background: bg, ...cssVars }}>
+    <main className="booking-surface min-h-screen text-slate-100 selection:bg-white/10" style={cssVars}>
       <div className="mx-auto max-w-lg px-4 py-6 sm:py-10">
         <header className="text-center mb-8">
           {empresa?.logo_url ? (
@@ -178,7 +216,7 @@ export default function BookingPage() {
         {paso === 'consultar_cita' && <PasoConsultarCita onVolver={() => setPaso('menu')} idCliente={idCliente} bookingToken={bookingToken} />}
         {paso === 'cancelar_cita' && <PasoCancelarCita onVolver={() => setPaso('menu')} idCliente={idCliente} bookingToken={bookingToken} />}
         {paso === 'modificar_cita' && <PasoModificarCita onVolver={() => setPaso('menu')} idCliente={idCliente} bookingToken={bookingToken} onSeleccionarCita={seleccionarCitaParaReagendar} />}
-        {paso === 'humano' && <PasoHumano onVolver={() => setPaso('menu')} empresaNombre={empresa?.nombre} />}
+        {paso === 'humano' && <PasoHumano onVolver={() => setPaso('menu')} empresaNombre={empresa?.nombre} telefonoProfesional={telefonoProfesional} />}
         {paso === 'info_empresa' && <PasoInformacionEmpresa empresa={empresa} onVolver={() => setPaso('menu')} />}
         {paso === 'en_construccion' && <EnDesarrollo onVolver={() => setPaso('menu')} />}
 

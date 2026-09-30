@@ -57,9 +57,7 @@ export default function DashboardLayout() {
           {logoUrl ? (
             <img src={logoUrl} alt="Logo" className="w-9 h-9 rounded-xl object-cover shadow-sm" />
           ) : (
-            <div className="w-9 h-9 rounded-xl bg-brand-primary flex items-center justify-center text-white font-bold text-sm">
-              {companyName.charAt(0).toUpperCase()}
-            </div>
+            <img src="/logo.svg" alt="Angel Nails" className="w-9 h-9 rounded-xl object-cover shadow-sm" />
           )}
           <div>
             <span className="font-bold text-slate-900 dark:text-white text-sm block leading-tight">{companyName}</span>
@@ -95,9 +93,7 @@ export default function DashboardLayout() {
             {logoUrl ? (
               <img src={logoUrl} alt="Logo" className="w-16 h-16 rounded-2xl object-cover shadow-lg ring-2 ring-white dark:ring-slate-800" />
             ) : (
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-primary to-brand-secondary flex items-center justify-center text-white font-bold text-2xl shadow-lg">
-                {companyName.charAt(0).toUpperCase()}
-              </div>
+              <img src="/logo.svg" alt="Angel Nails" className="w-16 h-16 rounded-2xl object-cover shadow-lg ring-2 ring-white dark:ring-slate-800" />
             )}
             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-white dark:border-[#0f172a]"></div>
           </div>

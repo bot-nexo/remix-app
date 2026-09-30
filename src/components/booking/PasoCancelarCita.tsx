@@ -2,6 +2,7 @@ import { cancelarCita, Citas, obtenerActivas } from "@/src/services/misCitas";
 import { AlertTriangle, Calendar, CalendarOff, ChevronDown, Clock, HandHeart, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from '../../contexts/ToastContext';
+import { getBookingErrorMessage } from "../../services/bookingApi";
 import BackButton from "../ui/BackButton";
 
 interface Props {
@@ -14,6 +15,7 @@ export default function PasoCancelarCita({ onVolver, idCliente, bookingToken }: 
     const { showToast } = useToast();
     const [citaAEliminar, setCitaAEliminar] = useState<any | null>(null);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const [citas, setCitas] = useState<Citas[]>([]);
 
     useEffect(() => {
@@ -23,15 +25,16 @@ export default function PasoCancelarCita({ onVolver, idCliente, bookingToken }: 
     const cargarCitas = async () => {
         try {
             setLoading(true);
+            setError('');
             const citas = await obtenerActivas(bookingToken);
             if (citas) {
                 setCitas(citas);
             } else {
                 showToast("Error al cargar las citas", "error");
             }
-        } catch (error) {
-            console.error("Error al cargar las citas:", error);
-            showToast("Error al cargar las citas", "error");
+        } catch (requestError) {
+            console.error("Error al cargar las citas:", requestError);
+            setError(getBookingErrorMessage(requestError, 'No pudimos cargar tus citas.'));
         } finally {
             setLoading(false);
         }
@@ -49,8 +52,9 @@ export default function PasoCancelarCita({ onVolver, idCliente, bookingToken }: 
             } else {
                 showToast("Error al cancelar la cita", "error");
             }
-        } catch (error) {
-            console.error("Error al cancelar la cita:", error);
+        } catch (requestError) {
+            console.error("Error al cancelar la cita:", requestError);
+            setError(getBookingErrorMessage(requestError, 'No pudimos cancelar la cita.'));
         } finally {
             setLoading(false);
         }
@@ -102,6 +106,12 @@ export default function PasoCancelarCita({ onVolver, idCliente, bookingToken }: 
                     {citas.length} {citas.length === 1 ? "cita" : "citas"}
                 </span>
             </div>
+            {error && (
+                <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-center">
+                    <p className="text-sm text-rose-200">{error}</p>
+                    <button type="button" onClick={cargarCitas} className="mt-3 text-xs font-semibold text-rose-300 underline">Intentar de nuevo</button>
+                </div>
+            )}
             {citas.length === 0 && !loading && (
                 <div className="mt-10 text-center py-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
                     <CalendarOff className="w-16 h-16 mx-auto mb-2 text-slate-400" />
@@ -168,7 +178,7 @@ export default function PasoCancelarCita({ onVolver, idCliente, bookingToken }: 
                 ))}
             </div>
 
-            {/* Botón Cargar Más */}
+            {/* Recarga manual */}
             {citas.length > 2 && (
                 <div className="pt-2">
                     <button
@@ -183,7 +193,7 @@ export default function PasoCancelarCita({ onVolver, idCliente, bookingToken }: 
                             </>
                         ) : (
                             <>
-                                <span>Cargar más citas</span>
+                                <span>Actualizar citas</span>
                                 <ChevronDown className="w-4 h-4 text-slate-400" />
                             </>
                         )}

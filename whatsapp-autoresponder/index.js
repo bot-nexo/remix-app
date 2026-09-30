@@ -751,6 +751,10 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 
+function asyncRoute(handler) {
+  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+}
+
 async function requireBusinessOwner(req, res, next) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !WHATSAPP_ADMIN_USER_ID) {
     return res.status(503).json({ error: 'Falta configurar el acceso administrativo de WhatsApp.' });
@@ -918,14 +922,28 @@ async function getBookingSlots(date, serviceId, clientId, excludeAppointmentId =
   return { slots };
 }
 
-app.get('/api/booking/availability', requireBookingAccess, async (req, res) => {
+app.get('/api/booking/availability', requireBookingAccess, asyncRoute(async (req, res) => {
   const result = await getBookingSlots(req.query.date, req.query.serviceId, req.bookingClientId, req.query.excludeAppointmentId);
   if (result.databaseError) return res.status(503).json({ error: 'No se pudo consultar la disponibilidad.' });
   if (result.error) return res.status(400).json({ error: result.error });
   return res.json({ slots: result.slots });
-});
+}));
 
-app.get('/api/booking/appointments', requireBookingAccess, async (req, res) => {
+app.get('/api/booking/context', requireBookingAccess, asyncRoute(async (_req, res) => {
+  const botConfig = await loadBotConfig();
+  return res.json({
+    company: empresaData ? {
+      nombre: empresaData.nombre,
+      direccion: empresaData.direccion,
+      horario: empresaData.horario,
+      politicas: empresaData.politicas,
+      nom_bot: empresaData.nom_bot,
+    } : null,
+    professionalPhone: botConfig?.telefonoProfesional || null,
+  });
+}));
+
+app.get('/api/booking/appointments', requireBookingAccess, asyncRoute(async (req, res) => {
   const { data, error } = await supabase.from('citas').select(`
     *,
     servicios ( id, nombre, valor, duracion_minutos )
@@ -941,9 +959,9 @@ app.get('/api/booking/appointments', requireBookingAccess, async (req, res) => {
     ? (data || []).filter((appointment) => ACTIVE_APPOINTMENT_STATES.has(appointment.estado?.toUpperCase()))
     : data || [];
   return res.json({ appointments });
-});
+}));
 
-app.post('/api/booking/appointments', requireBookingAccess, async (req, res) => {
+app.post('/api/booking/appointments', requireBookingAccess, asyncRoute(async (req, res) => {
   const { serviceId, date, startTime, name, phone } = req.body || {};
   if (!/^[0-9a-f-]{36}$/i.test(serviceId || '') || !isValidBookingDate(date) ||
       !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime || '') ||
@@ -966,9 +984,9 @@ app.post('/api/booking/appointments', requireBookingAccess, async (req, res) => 
     return res.status(status).json({ error: status === 409 ? error.message : 'No se pudo guardar la cita.' });
   }
   return res.status(201).json({ appointment: data });
-});
+}));
 
-app.post('/api/booking/appointments/:id/cancel', requireBookingAccess, async (req, res) => {
+app.post('/api/booking/appointments/:id/cancel', requireBookingAccess, asyncRoute(async (req, res) => {
   if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: 'Cita inválida.' });
 
   const query = supabase.from('citas').select('estado')
@@ -992,9 +1010,9 @@ app.post('/api/booking/appointments/:id/cancel', requireBookingAccess, async (re
   if (error) return res.status(503).json({ error: 'No se pudo cancelar la cita.' });
   if (!data) return res.status(409).json({ error: 'La cita cambió de estado; actualiza e intenta de nuevo.' });
   return res.json({ ok: true });
-});
+}));
 
-app.post('/api/booking/appointments/:id/reschedule', requireBookingAccess, async (req, res) => {
+app.post('/api/booking/appointments/:id/reschedule', requireBookingAccess, asyncRoute(async (req, res) => {
   const { date, startTime } = req.body || {};
   if (!/^[0-9a-f-]{36}$/i.test(req.params.id) || !isValidBookingDate(date) ||
       !/^([01]\d|2[0-3]):[0-5]\d$/.test(startTime || '')) {
@@ -1013,7 +1031,7 @@ app.post('/api/booking/appointments/:id/reschedule', requireBookingAccess, async
     return res.status(status).json({ error: status === 409 ? error.message : 'No se pudo reagendar la cita.' });
   }
   return res.json({ appointment: data });
-});
+}));
 
 // Mapeo en memoria de clientes que ya están en estado HUMANO (optimización)
 const humanStateCache = new Map();
@@ -1345,6 +1363,12 @@ app.get('/health', (_req, res) => {
       bot: empresaData.nom_bot,
     } : null,
   });
+});
+
+app.use((error, _req, res, _next) => {
+  console.error('[HTTP] Error inesperado:', error?.stack || error?.message || error);
+  if (res.headersSent) return;
+  return res.status(500).json({ error: 'Ocurrió un error inesperado. Intenta de nuevo.' });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { OPCIONES_MENU } from "@/src/arreglos";
+import { findAngelPalette } from "@/src/constants/angelPalettes";
 import { ArrowRight, Calendar, CalendarOff, CalendarSync, MapPin, MessageCircle, Scissors, Search, Sparkles } from "lucide-react";
 import { EmpresaConfig } from "../../services/empresaService";
 
@@ -8,7 +9,7 @@ interface Props {
 }
 
 export default function MenuAgenda({ onSeleccionarOpcion, empresa }: Props) {
-    const colorPrimario = empresa?.color_primario || '#1083b9';
+    const colorPrimario = findAngelPalette(empresa?.color_primario, empresa?.color_secundario).primary;
     const iconos = [Scissors, Search, CalendarOff, CalendarSync, MessageCircle, MapPin];
     const opcionesSecundarias = OPCIONES_MENU.filter((opcion) => opcion.id !== 1);
 

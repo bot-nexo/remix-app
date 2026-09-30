@@ -1,6 +1,7 @@
 import { useToast } from "@/src/contexts/ToastContext";
 import { Calendar, CalendarOff, ChevronDown, Clock, HandHeart, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { getBookingErrorMessage } from "../../services/bookingApi";
 import { obtenerMisCitas } from "../../services/misCitas";
 import BackButton from "../ui/BackButton";
 
@@ -16,6 +17,7 @@ export default function PasoConsultarCita({ onVolver, idCliente, bookingToken }:
     const { showToast } = useToast();
     const [citas, setCitas] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [loadingMore, setLoadingMore] = useState(false);
 
     // Control de paginación
@@ -29,6 +31,7 @@ export default function PasoConsultarCita({ onVolver, idCliente, bookingToken }:
     async function cargarCitas() {
         try {
             setLoading(true);
+            setError('');
             const data = await obtenerMisCitas(bookingToken);
             if (data) {
                 setCitas(data);
@@ -37,7 +40,7 @@ export default function PasoConsultarCita({ onVolver, idCliente, bookingToken }:
             }
         } catch (err) {
             console.error(err);
-            showToast("Error al cargar citas", "error");
+            setError(getBookingErrorMessage(err, 'No pudimos cargar tus citas.'));
         } finally {
             setLoading(false);
         }
@@ -102,6 +105,12 @@ export default function PasoConsultarCita({ onVolver, idCliente, bookingToken }:
                     {citas.length} {citas.length === 1 ? "cita" : "citas"}
                 </span>
             </div>
+            {error && (
+                <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-center">
+                    <p className="text-sm text-rose-200">{error}</p>
+                    <button type="button" onClick={cargarCitas} className="mt-3 text-xs font-semibold text-rose-300 underline">Intentar de nuevo</button>
+                </div>
+            )}
             {citas.length === 0 && !loading && (
                 <div className="mt-10 text-center py-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
                     <CalendarOff className="w-16 h-16 mx-auto mb-2 text-slate-400" />

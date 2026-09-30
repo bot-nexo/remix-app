@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { DEFAULT_ANGEL_PALETTE, findAngelPalette } from '../constants/angelPalettes';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -15,8 +16,9 @@ interface ThemeContextType {
   logoUrl: string;
 }
 
-const defaultPrimary = empresa?.color_primario || '#2a8dffff';
-const defaultSecondary = empresa?.color_secundario || '#1d4be1ff';
+const defaultPalette = findAngelPalette(empresa?.color_primario, empresa?.color_secundario);
+const defaultPrimary = defaultPalette.primary || DEFAULT_ANGEL_PALETTE.primary;
+const defaultSecondary = defaultPalette.secondary || DEFAULT_ANGEL_PALETTE.secondary;
 
 const ThemeContext = createContext<ThemeContextType>({
   isDarkMode: true,
@@ -48,8 +50,9 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       .single();
 
     if (data) {
-      if (data.color_primario) setPrimaryColor(data.color_primario);
-      if (data.color_secundario) setSecondaryColor(data.color_secundario);
+      const palette = findAngelPalette(data.color_primario, data.color_secundario);
+      setPrimaryColor(palette.primary);
+      setSecondaryColor(palette.secondary);
       if (data.nombre) setCompanyName(data.nombre);
       if (data.logo_url) setLogoUrl(data.logo_url);
     }

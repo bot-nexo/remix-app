@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { Camera, Check, Droplets, Save, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ANGEL_PALETTE_STORAGE_KEY, ANGEL_PALETTES, findAngelPalette } from '../constants/angelPalettes';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Building2, Save, Upload, Camera } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { supabase } from '../lib/supabase';
 
 export default function Empresa() {
   const { showToast } = useToast();
@@ -15,8 +16,8 @@ export default function Empresa() {
   const [direccion, setDireccion] = useState('');
   const [horario, setHorario] = useState('');
   const [politicas, setPoliticas] = useState('');
-  const [colorPrimario, setColorPrimario] = useState('#0084ffff');
-  const [colorSecundario, setColorSecundario] = useState('#7c7c7cff');
+  const [colorPrimario, setColorPrimario] = useState('#C96F8D');
+  const [colorSecundario, setColorSecundario] = useState('#7B3F54');
   const [logoUrl, setLogoUrl] = useState('');
 
   const [file, setFile] = useState<File | null>(null);
@@ -42,8 +43,9 @@ export default function Empresa() {
       setDireccion(data.direccion || '');
       setHorario(data.horario || '');
       setPoliticas(data.politicas || '');
-      setColorPrimario(data.color_primario || '#0084ffff');
-      setColorSecundario(data.color_secundario || '#7c7c7cff');
+      const palette = findAngelPalette(data.color_primario, data.color_secundario);
+      setColorPrimario(palette.primary);
+      setColorSecundario(palette.secondary);
       setLogoUrl(data.logo_url || '');
     }
     setLoading(false);
@@ -91,6 +93,7 @@ export default function Empresa() {
 
       if (error) throw error;
       showToast('Información guardada.', 'success');
+      localStorage.setItem(ANGEL_PALETTE_STORAGE_KEY, JSON.stringify({ primary: colorPrimario, secondary: colorSecundario }));
       setLogoUrl(currentLogoUrl);
       setFile(null);
       refreshCompanyData();
@@ -103,6 +106,11 @@ export default function Empresa() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setFile(e.target.files[0]);
+  };
+
+  const aplicarPaleta = (primary: string, secondary: string) => {
+    setColorPrimario(primary);
+    setColorSecundario(secondary);
   };
 
   if (loading) return <div className="p-8 text-center text-sm text-slate-400">Cargando...</div>;
@@ -175,39 +183,48 @@ export default function Empresa() {
         </div>
 
         {/* Colores */}
-        <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800/60 p-5">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Identidad Visual</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Color Primario</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color" value={colorPrimario}
-                  onChange={(e) => setColorPrimario(e.target.value)}
-                  className="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer p-0.5"
-                />
-                <input
-                  type="text" value={colorPrimario}
-                  onChange={(e) => setColorPrimario(e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm font-mono border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white"
-                />
-                <div className="w-10 h-10 rounded-xl shadow-inner" style={{ backgroundColor: colorPrimario }}></div>
+        <div className="relative overflow-hidden rounded-2xl border border-[#efc5d3]/30 bg-[linear-gradient(135deg,#fff7f8_0%,#fff_52%,#f8e8ed_100%)] p-5 dark:border-[#efc5d3]/15 dark:bg-[linear-gradient(135deg,#20131a_0%,#0f172a_58%,#2b1823_100%)]">
+          <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full border border-[#c96f8d]/15" />
+          <div className="relative">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-brand-primary">
+                  <Sparkles size={15} />
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em]">Firma Angel Nails</p>
+                </div>
+                <h2 className="mt-2 text-lg font-bold text-slate-900 dark:text-white">Elige tu atmósfera</h2>
+                <p className="mt-1 max-w-lg text-xs leading-relaxed text-slate-500 dark:text-slate-400">Estos colores aparecerán en tu panel y en la experiencia de reservas de tus clientes.</p>
               </div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#c96f8d]/10 text-[#c96f8d]"><Droplets size={18} /></div>
             </div>
-            <div>
-              <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">Color Secundario</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color" value={colorSecundario}
-                  onChange={(e) => setColorSecundario(e.target.value)}
-                  className="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer p-0.5"
-                />
-                <input
-                  type="text" value={colorSecundario}
-                  onChange={(e) => setColorSecundario(e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm font-mono border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white"
-                />
-                <div className="w-10 h-10 rounded-xl shadow-inner" style={{ backgroundColor: colorSecundario }}></div>
+
+            <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              {ANGEL_PALETTES.map((palette) => {
+                const selected = colorPrimario.toUpperCase() === palette.primary && colorSecundario.toUpperCase() === palette.secondary;
+                return (
+                  <button
+                    key={palette.name}
+                    type="button"
+                    onClick={() => aplicarPaleta(palette.primary, palette.secondary)}
+                    className={`relative flex items-center gap-3 rounded-xl border p-2.5 text-left transition-all hover:-translate-y-0.5 ${selected ? 'border-brand-primary bg-brand-primary/10 shadow-sm' : 'border-slate-200/80 bg-white/70 dark:border-slate-700/70 dark:bg-slate-900/40'}`}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 overflow-hidden rounded-lg shadow-inner"><span className="h-full w-1/2" style={{ backgroundColor: palette.primary }} /><span className="h-full w-1/2" style={{ backgroundColor: palette.secondary }} /></span>
+                    <span className="min-w-0"><span className="block truncate text-[11px] font-semibold text-slate-700 dark:text-slate-200">{palette.name}</span><span className="block text-[9px] uppercase tracking-wider text-slate-400">Paleta</span></span>
+                    {selected && <Check size={14} className="ml-auto shrink-0 text-brand-primary" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-5 overflow-hidden rounded-2xl border border-white/50 bg-white/80 shadow-sm dark:border-white/10 dark:bg-slate-950/50">
+              <div className="flex items-center justify-between px-4 py-3" style={{ background: `linear-gradient(110deg, ${colorPrimario}, ${colorSecundario})` }}>
+                <div className="flex items-center gap-2 text-white"><span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/20"><Sparkles size={12} /></span><span className="text-[11px] font-semibold">Vista previa de tu marca</span></div>
+                <span className="text-[10px] font-medium text-white/75">Angel Nails</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 p-3">
+                <span className="h-7 rounded-lg" style={{ backgroundColor: colorPrimario }} />
+                <span className="h-7 rounded-lg" style={{ backgroundColor: colorSecundario }} />
+                <span className="h-7 rounded-lg border border-slate-200 bg-[#f7e4e8] dark:border-slate-700" />
               </div>
             </div>
           </div>
@@ -243,3 +260,4 @@ export default function Empresa() {
     </div>
   );
 }
+

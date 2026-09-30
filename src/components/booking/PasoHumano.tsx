@@ -1,17 +1,20 @@
-import BackButton from "../ui/BackButton";
 import { MessageCircle } from "lucide-react";
+import BackButton from "../ui/BackButton";
 
 interface Props {
     onVolver: () => void;
     empresaNombre?: string;
+    telefonoProfesional?: string;
 }
 
-export default function PasoHumano({ onVolver, empresaNombre }: Props) {
+export default function PasoHumano({ onVolver, empresaNombre, telefonoProfesional }: Props) {
     const handleWhatsApp = () => {
         const mensaje = encodeURIComponent(
             `Hola, requiero hablar con usted. Soy cliente de ${empresaNombre || "este negocio"} y necesito atención personalizada.`
         );
-        window.open(`https://wa.me/?text=${mensaje}`, "_blank");
+        const phone = (telefonoProfesional || '').replace(/\D/g, '');
+        if (!phone) return;
+        window.open(`https://wa.me/${phone}?text=${mensaje}`, "_blank", "noopener,noreferrer");
     };
 
     return (
@@ -31,9 +34,10 @@ export default function PasoHumano({ onVolver, empresaNombre }: Props) {
                 <button
                     type="button"
                     onClick={handleWhatsApp}
+                    disabled={!telefonoProfesional}
                     className="mt-4 w-full rounded-xl bg-green-600 hover:bg-green-500 px-4 py-3 font-semibold text-white transition active:scale-[0.99]"
                 >
-                    💬 Abrir WhatsApp
+                    {telefonoProfesional ? 'Abrir WhatsApp' : 'WhatsApp no configurado'}
                 </button>
             </div>
         </section>

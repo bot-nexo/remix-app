@@ -1,4 +1,5 @@
 import { UserStar } from 'lucide-react';
+import { findAngelPalette } from '../../constants/angelPalettes';
 import { EmpresaConfig } from '../../services/empresaService';
 import BackButton from '../ui/BackButton';
 
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
+  const brandColor = findAngelPalette(empresa?.color_primario, empresa?.color_secundario).primary;
   return (
     <section className="space-y-4">
       <BackButton
@@ -25,7 +27,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
             />
           ) : (
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-2xl border border-slate-700">
-              <UserStar color={empresa?.color_primario || '#1083b9ff'} />
+              <UserStar color={brandColor} />
             </div>
           )}
           <div>

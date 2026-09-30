@@ -87,7 +87,7 @@ export default defineConfig(() => {
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       proxy: {
         '/autoresponder-api': {
-          target: 'http://localhost:3100',
+          target: 'http://localhost:3000',
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path.replace(/^\/autoresponder-api/, ''),

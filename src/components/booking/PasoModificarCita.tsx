@@ -1,6 +1,7 @@
 import { ArrowRight, Calendar, CalendarOff, CalendarSync, Clock, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useToast } from '../../contexts/ToastContext';
+import { getBookingErrorMessage } from "../../services/bookingApi";
 import { obtenerActivas } from "../../services/misCitas";
 import BackButton from "../ui/BackButton";
 
@@ -15,6 +16,7 @@ export default function PasoModificarCita({ onVolver, idCliente, bookingToken, o
     const { showToast } = useToast();
     const [loading, setLoading] = useState(false);
     const [citas, setCitas] = useState<any[]>([]);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         if (idCliente && bookingToken) cargarCitas();
@@ -23,15 +25,16 @@ export default function PasoModificarCita({ onVolver, idCliente, bookingToken, o
     const cargarCitas = async () => {
         try {
             setLoading(true);
+            setError('');
             const data = await obtenerActivas(bookingToken);
             if (data) {
                 setCitas(data);
             } else {
                 showToast("Error al cargar las citas", "error");
             }
-        } catch (error) {
-            console.error("Error al cargar las citas:", error);
-            showToast("Error al cargar las citas", "error");
+        } catch (requestError) {
+            console.error("Error al cargar las citas:", requestError);
+            setError(getBookingErrorMessage(requestError, 'No pudimos cargar tus citas.'));
         } finally {
             setLoading(false);
         }
@@ -62,6 +65,12 @@ export default function PasoModificarCita({ onVolver, idCliente, bookingToken, o
                     {citas.length} {citas.length === 1 ? "disponible" : "disponibles"}
                 </span>
             </div>
+            {error && (
+                <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-center">
+                    <p className="text-sm text-rose-200">{error}</p>
+                    <button type="button" onClick={cargarCitas} className="mt-3 text-xs font-semibold text-rose-300 underline">Intentar de nuevo</button>
+                </div>
+            )}
 
             {citas.length === 0 && !loading && (
                 <div className="mt-10 text-center py-8 bg-slate-800/60 rounded-xl border border-slate-700/60 px-4">

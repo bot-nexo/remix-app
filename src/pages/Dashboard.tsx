@@ -1,12 +1,22 @@
+import {
+    Activity,
+    AlertTriangle,
+    ArrowDownRight,
+    ArrowUpRight,
+    Award,
+    Calendar,
+    Clock,
+    DollarSign,
+    Eye,
+    EyeOff,
+    UserPlus,
+    Users
+} from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { supabase } from '../lib/supabase';
 import { CitaResumen, ServicioPopular } from '../types/types';
-import {
-  Calendar, DollarSign, Activity, TrendingUp, Target, EyeOff, Eye,
-  UserCheck, Award, Clock, ArrowUpRight, ArrowDownRight, Users, UserPlus, AlertTriangle
-} from 'lucide-react';
 
 
 export default function Dashboard() {
@@ -193,16 +203,18 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* HEADER */}
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Hola, {companyName} 👋</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             Resumen de tu negocio de hoy
           </p>
         </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500 hidden md:block">
-          {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-slate-400 dark:text-slate-500 hidden md:block">
+            {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        </div>
       </div>
 
       {/* FILA 1: KPIs PRINCIPALES */}

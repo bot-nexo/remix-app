@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { formatearPrecio } from '../functions';
 import { crearCita } from '../services/citasService';
@@ -21,28 +20,21 @@ import PasoModificarCita from '../components/booking/PasoModificarCita';
 import PasoResumen from '../components/booking/PasoResumen';
 import PasoServicio from '../components/booking/PasoServicio';
 import PasoServiciosPrecios from '../components/booking/PasoServiciosPrecios';
-import { ANGEL_PALETTE_STORAGE_KEY, findAngelPalette } from '../constants/angelPalettes';
+import { findAngelPalette } from '../constants/angelPalettes';
 import { bookingRequest, getBookingErrorMessage } from '../services/bookingApi';
 import { reagendarCita } from '../services/misCitas';
 
+//******************************************* */
 export default function BookingPage() {
   const [customerAccess] = useState<{ id: string; token: string } | null>(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
     const token = urlParams.get('token');
-    if (id && token) {
-      localStorage.setItem('angel_cliente_id', id);
-      localStorage.setItem('angel_booking_token', token);
-      return { id, token };
-    }
-    const savedId = localStorage.getItem('angel_cliente_id');
-    const savedToken = localStorage.getItem('angel_booking_token');
-    return savedId && savedToken ? { id: savedId, token: savedToken } : null;
+    return id && token ? { id, token } : null;
   });
   const idCliente = customerAccess?.id || null;
   const bookingToken = customerAccess?.token || '';
   const { showToast } = useToast();
-  const { user, signOut } = useAuth();
   const [empresa, setEmpresa] = useState<EmpresaConfig | null>(null);
   const [telefonoProfesional, setTelefonoProfesional] = useState('');
   const [loading, setLoading] = useState(true);
@@ -63,45 +55,14 @@ export default function BookingPage() {
   const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
   const [citaAModificar, setCitaAModificar] = useState<any | null>(null);
 
+  //************************************************ */
   useEffect(() => {
-    if (user) { signOut(); return; }
+    if (!idCliente || !bookingToken) {
+      setLoading(false);
+      return;
+    }
     cargarDatosIniciales();
-  }, [user]);
-
-  useEffect(() => {
-    const handlePaletteChange = (event: StorageEvent) => {
-      if (event.key !== ANGEL_PALETTE_STORAGE_KEY || !event.newValue) return;
-      try {
-        const selected = JSON.parse(event.newValue) as { primary?: string; secondary?: string };
-        const nextPalette = findAngelPalette(selected.primary, selected.secondary);
-        setEmpresa((current) => current ? {
-          ...current,
-          color_primario: nextPalette.primary,
-          color_secundario: nextPalette.secondary,
-        } : current);
-      } catch {
-        // Ignore malformed local storage values and keep the persisted database palette.
-      }
-    };
-
-    window.addEventListener('storage', handlePaletteChange);
-    return () => window.removeEventListener('storage', handlePaletteChange);
-  }, []);
-
-  // Si no hay idCliente, mostrar error
-  if (!idCliente || !bookingToken) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#0a0a0a' }}>
-        <div className="text-center max-w-sm">
-          <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">⚠️</span>
-          </div>
-          <h2 className="text-lg font-bold text-white mb-2">Enlace no válido</h2>
-          <p className="text-sm text-slate-400">Abre el enlace seguro que recibiste por WhatsApp para consultar o reservar tus citas.</p>
-        </div>
-      </div>
-    );
-  }
+  }, [idCliente, bookingToken]);
 
   async function cargarDatosIniciales() {
     try {
@@ -182,14 +143,33 @@ export default function BookingPage() {
     );
   }
 
+  if (!idCliente || !bookingToken) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-[#130d11] px-5 text-center text-white">
+        <div className="max-w-sm">
+          <h1 className="text-xl font-semibold">Enlace de reserva no válido</h1>
+          <p className="mt-2 text-sm text-white/70">Abre el enlace personal que recibiste por WhatsApp para acceder al catálogo.</p>
+        </div>
+      </main>
+    );
+  }
+
+  const textureMap = {
+    'Blush Angel': "url('/catalog-texture-blush.svg')",
+    'Rose Champagne': "url('/catalog-texture-rose.svg')",
+    'Nude Couture': "url('/catalog-texture-nude.svg')",
+  } as const;
+
   const cssVars = {
     '--brand-primary': colorPrimario,
     '--brand-secondary': colorSecundario,
     '--brand-blush': palette.blush,
     '--brand-gold': palette.gold,
     '--brand-ink': palette.ink,
+    '--catalog-texture': textureMap[palette.name as keyof typeof textureMap] || "url('/catalog-texture-blush.svg')",
   } as React.CSSProperties;
 
+    //******************************************* */
   return (
     <main className="booking-surface min-h-screen text-slate-100 selection:bg-white/10" style={cssVars}>
       <div className="mx-auto max-w-lg px-4 py-6 sm:py-10">
@@ -202,7 +182,9 @@ export default function BookingPage() {
             </div>
           )}
           <h1 className="text-2xl font-bold tracking-tight text-white">{empresa?.nombre || 'Angel Nails'}</h1>
-          <p className="text-xs text-slate-500 mt-1">Reserva tu cita en línea</p>
+          <p className="text-xs text-slate-500 mt-1">
+            Reserva tu cita en línea
+          </p>
         </header>
 
         {paso === 'menu' && <MenuAgenda onSeleccionarOpcion={manejarSeleccionMenu} empresa={empresa} />}

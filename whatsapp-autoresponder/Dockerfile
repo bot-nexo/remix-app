@@ -28,15 +28,21 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copiar código fuente
-COPY index.js   ./index.js
-COPY config.json ./config.json
+COPY --chown=appuser:appgroup index.js ./index.js
+COPY --chown=appuser:appgroup config.json ./config.json
+
+# Seed a writable persistent volume for config updates via the admin API.
+RUN mkdir -p /app/data \
+  && cp /app/config.json /app/data/config.json \
+  && chown -R appuser:appgroup /app/data
 
 # Usar usuario no-root
 USER appuser
 
 # Variables de entorno por defecto (sobreescribibles con --env-file o -e)
 ENV PORT=3000 \
-    NODE_ENV=production
+  NODE_ENV=production \
+  CONFIG_PATH=/app/data/config.json
 
 # Exponer el puerto
 EXPOSE 3000

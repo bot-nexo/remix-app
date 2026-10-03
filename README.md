@@ -149,7 +149,9 @@ Cuando un cliente reserva por primera vez, queda registrado automáticamente en 
 
 El frontend usa el microservicio para administrar Evolution API y atender el portal mediante enlaces firmados. En producción configura `VITE_AUTORESPONDER_URL` con la URL pública del microservicio. En `whatsapp-autoresponder/.env` configura `WHATSAPP_ADMIN_USER_ID`, `FRONTEND_ORIGINS`, `SUPABASE_SERVICE_ROLE_KEY` y `BOOKING_LINK_SECRET`. Las claves de Evolution, service role y firma solo existen en el servidor, nunca en variables `VITE_`.
 
-En una base nueva, ejecuta primero `database.sql` y luego las migraciones en orden: `20260926_align_runtime_schema.sql`, `20260926_atomic_booking_operations.sql` y `20260926_lock_down_public_appointment_tables.sql`. En una base existente, revisa los duplicados que detecta la primera migración. No apliques la última migración hasta que el microservicio tenga ambas claves server-side y esté desplegado.
+En una base nueva, ejecuta primero `database.sql` y luego las migraciones en orden: `20260926_align_runtime_schema.sql`, `20260926_atomic_booking_operations.sql`, `20260926_lock_down_public_appointment_tables.sql` y `20261002_restrict_public_empresa_columns.sql`. En una base existente, revisa los duplicados que detecta la primera migración. No apliques el bloqueo de tablas de citas hasta que el microservicio tenga `SUPABASE_SERVICE_ROLE_KEY` y `BOOKING_LINK_SECRET` server-side y esté desplegado.
+
+En producción, el frontend Vite puede permanecer en Netlify y el VPS ejecuta Evolution API, el autoresponder, PostgreSQL y Redis mediante `whatsapp-autoresponder/docker-compose.yml`. Configura `VITE_AUTORESPONDER_URL` en el entorno de build de Netlify. En el VPS configura `POSTGRES_PASSWORD`, `EVOLUTION_API_KEY`, `EVOLUTION_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` y `BOOKING_LINK_SECRET` en `whatsapp-autoresponder/.env`; nunca copies esos valores a variables `VITE_` ni al repositorio. Compose guarda la sesión de Evolution en PostgreSQL y enlaza el webhook con JWT HS256.
 
 ---
 

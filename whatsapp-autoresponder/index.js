@@ -27,13 +27,17 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
+const { verifyEvolutionWebhookToken } = require('./webhookAuth');
 
 // ─── Constantes de entorno ────────────────────────────────────────────────────
+const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = process.env.PORT || 3000;
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:8480';
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE_NAME || 'default';
+const EVOLUTION_WEBHOOK_URL = process.env.EVOLUTION_WEBHOOK_URL || `http://localhost:${PORT}/webhook/evolution`;
+const EVOLUTION_WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET || '';
 const WHATSAPP_ADMIN_USER_ID = process.env.WHATSAPP_ADMIN_USER_ID || '';
 const BOOKING_LINK_SECRET = process.env.BOOKING_LINK_SECRET || '';
 const FRONTEND_ORIGINS = new Set(
@@ -45,11 +49,40 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL |
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
+if (NODE_ENV === 'production') {
+  const requiredSettings = {
+    ADMIN_API_KEY,
+    EVOLUTION_API_URL,
+    EVOLUTION_API_KEY,
+    EVOLUTION_WEBHOOK_URL,
+    EVOLUTION_WEBHOOK_SECRET,
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY,
+    WHATSAPP_ADMIN_USER_ID,
+    BOOKING_LINK_SECRET,
+    FRONTEND_ORIGINS: FRONTEND_ORIGINS.size ? 'configured' : '',
+  };
+  const missingSettings = Object.entries(requiredSettings)
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missingSettings.length) {
+    throw new Error(`Faltan variables de producción requeridas: ${missingSettings.join(', ')}`);
+  }
+  if (ADMIN_API_KEY.length < 32 || EVOLUTION_WEBHOOK_SECRET.length < 32 || BOOKING_LINK_SECRET.length < 32) {
+    throw new Error('ADMIN_API_KEY, EVOLUTION_WEBHOOK_SECRET y BOOKING_LINK_SECRET deben tener al menos 32 caracteres.');
+  }
+  if (!/^[0-9a-f-]{36}$/i.test(WHATSAPP_ADMIN_USER_ID)) {
+    throw new Error('WHATSAPP_ADMIN_USER_ID debe ser un UUID válido.');
+  }
+}
+
 const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY);
 
 // ─── Ruta al archivo de configuración ────────────────────────────────────────
-const CONFIG_PATH = path.join(__dirname, 'config.json');
+const CONFIG_PATH = process.env.CONFIG_PATH || path.join(__dirname, 'config.json');
 
 // ─── Link del portal PWA (real) ──────────────────────────────────────────────
 const PWA_URL = 'https://angelnailsagenda.netlify.app/reservar';
@@ -621,7 +654,7 @@ async function simulateTyping(to) {
   // Delay aleatorio entre 2000 y 6000 ms
   const delay = Math.floor(Math.random() * (6000 - 2000 + 1)) + 2000;
 
-  console.log(`[TYPING] Simulando escritura para ${to} por ${delay}ms...`);
+  console.log('[TYPING] Simulando presencia de escritura.');
 
   // Enviar presence "typing" para que el cliente vea que alguien está escribiendo
   try {
@@ -637,13 +670,13 @@ async function simulateTyping(to) {
       timeout: 5000,
     });
   } catch (err) {
-    console.warn(`[TYPING] No se pudo enviar presence typing para ${to}:`, err?.response?.data || err.message);
+    console.warn('[TYPING] No se pudo enviar presence typing.');
   }
 
   // Esperar el delay aleatorio
   await new Promise((resolve) => setTimeout(resolve, delay));
 
-  console.log(`[TYPING] Escritura simulada por ${delay}ms para ${to}.`);
+  console.log(`[TYPING] Escritura simulada por ${delay}ms.`);
 }
 
 /**
@@ -742,7 +775,7 @@ app.use((req, res, next) => {
   if (origin) {
     res.set('Access-Control-Allow-Origin', origin);
     res.set('Vary', 'Origin');
-    res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, ngrok-skip-browser-warning');
     res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   }
 
@@ -776,6 +809,19 @@ async function requireBusinessOwner(req, res, next) {
   }
 }
 
+function requireEvolutionWebhook(req, res, next) {
+  if (!EVOLUTION_WEBHOOK_SECRET || EVOLUTION_WEBHOOK_SECRET.length < 32) {
+    return res.status(503).json({ error: 'La autenticación del webhook no está configurada.' });
+  }
+
+  const token = req.get('Authorization')?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
+  if (!verifyEvolutionWebhookToken(token, EVOLUTION_WEBHOOK_SECRET)) {
+    return res.status(401).json({ error: 'Firma de webhook inválida.' });
+  }
+
+  next();
+}
+
 async function proxyEvolution(res, method, endpoint, payload, mapResponse = (data) => data) {
   if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
     return res.status(503).json({ error: 'Evolution API no está configurada en el servidor.' });
@@ -798,13 +844,25 @@ async function proxyEvolution(res, method, endpoint, payload, mapResponse = (dat
 }
 
 const evolutionInstance = encodeURIComponent(EVOLUTION_INSTANCE);
-app.post('/api/evolution/instance/create', requireBusinessOwner, (req, res) =>
-  proxyEvolution(res, 'POST', '/instance/create', {
+app.post('/api/evolution/instance/create', requireBusinessOwner, (req, res) => {
+  if (!EVOLUTION_WEBHOOK_SECRET || EVOLUTION_WEBHOOK_SECRET.length < 32) {
+    return res.status(503).json({ error: 'La autenticación del webhook no está configurada.' });
+  }
+
+  return proxyEvolution(res, 'POST', '/instance/create', {
     instanceName: EVOLUTION_INSTANCE,
     qrcode: true,
     integration: 'WHATSAPP-BAILEYS',
+    webhook: {
+      enabled: true,
+      url: EVOLUTION_WEBHOOK_URL,
+      headers: { jwt_key: EVOLUTION_WEBHOOK_SECRET },
+      byEvents: false,
+      base64: false,
+      events: ['MESSAGES_UPSERT'],
+    },
   }, (data) => ({ instance: data.instance }))
-);
+});
 app.get('/api/evolution/instance/connect', requireBusinessOwner, (req, res) =>
   proxyEvolution(res, 'GET', `/instance/connect/${evolutionInstance}`)
 );
@@ -1067,7 +1125,7 @@ async function loadHumanStateCache() {
 // Ruta: POST /webhook/evolution
 // Recibe los eventos de Evolution API y ejecuta la lógica del bot.
 // ─────────────────────────────────────────────────────────────────────────────
-app.post('/webhook/evolution', async (req, res) => {
+app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, res) => {
   // ── 1. Responder HTTP 200 de inmediato para no bloquear Evolution ──────────
   res.sendStatus(200);
 
@@ -1099,7 +1157,7 @@ app.post('/webhook/evolution', async (req, res) => {
           const updated = await updateConversationState(clientId, 'MENU_PRINCIPAL');
           if (updated) {
             humanStateCache.delete(clientId);
-            console.log(`[BOT] Profesional cerró conversación. Cliente ${clientId} → MENU_PRINCIPAL.`);
+            console.log('[BOT] Profesional cerró la conversación.');
           }
         }
       }
@@ -1140,19 +1198,19 @@ app.post('/webhook/evolution', async (req, res) => {
     '';
 
   if (!rawText) {
-    console.log(`[WEBHOOK] Mensaje no textual de ${canonicalJid}. Ignorando.`);
+    console.log('[WEBHOOK] Mensaje no textual ignorado.');
     return;
   }
 
   // ── 9. Normalizar texto ───────────────────────────────────────────────────
   const normalizedText = normalizeText(rawText);
 
-  console.log(`[WEBHOOK] Mensaje de ${canonicalJid} (${cleanIdentifier}): "${rawText}"`);
+  console.log('[WEBHOOK] Mensaje de texto recibido.');
 
   // ── 10. Validar si el bot está activo ──────────────────────────────────────
   const botConfig = await getBotConfigFromDB();
   if (!botConfig || !botConfig.botActivo) {
-    console.log(`[BOT] Bot inactivo. Mensaje de ${canonicalJid} ignorado.`);
+    console.log('[BOT] Bot inactivo; mensaje ignorado.');
     return;
   }
 
@@ -1166,7 +1224,7 @@ app.post('/webhook/evolution', async (req, res) => {
 
   const clientInfo = await findOrCreateClient(cleanIdentifier, data?.pushName || '', isLid);
   if (!clientInfo || !clientInfo.id) {
-    console.error(`[BOT] No se pudo resolver/crear cliente para ${canonicalJid}.`);
+    console.error('[BOT] No se pudo resolver o crear el cliente.');
     return;
   }
 
@@ -1177,7 +1235,7 @@ app.post('/webhook/evolution', async (req, res) => {
                        await isClientInHumanState(clientId);
 
   if (inHumanState) {
-    console.log(`[BOT] Cliente ${clientId} está en estado HUMANO. Mensaje ignorado por el autoresponder.`);
+    console.log('[BOT] Mensaje ignorado porque la conversación está en estado HUMANO.');
     return;
   }
 
@@ -1185,7 +1243,7 @@ app.post('/webhook/evolution', async (req, res) => {
   if (isCerrarCommand(rawText)) {
     await updateConversationState(clientId, 'MENU_PRINCIPAL');
     humanStateCache.delete(clientId);
-    console.log(`[BOT] Cliente ${clientId} escribió "cerrar.". Estado → MENU_PRINCIPAL.`);
+    console.log('[BOT] Conversación cerrada por el cliente.');
     return;
   }
 
@@ -1196,7 +1254,7 @@ app.post('/webhook/evolution', async (req, res) => {
   );
 
   if (wantsAgent) {
-    console.log(`[BOT] Cliente ${clientId} solicitó atención humana. Cambiando a HUMANO.`);
+    console.log('[BOT] El cliente solicitó atención humana.');
 
     // Actualizar estado a HUMANO
     const updated = await updateConversationState(clientId, 'HUMANO');
@@ -1211,18 +1269,18 @@ app.post('/webhook/evolution', async (req, res) => {
 
     try {
       await sendMessageWithTyping(canonicalJid, clientResponse);
-      console.log(`[BOT] Mensaje de transferencia enviado a ${canonicalJid}.`);
+      console.log('[BOT] Mensaje de transferencia enviado.');
     } catch (err) {
-      console.error(`[BOT] Error al enviar mensaje de transferencia a ${canonicalJid}:`, err?.response?.data || err.message);
+      console.error('[BOT] Error al enviar el mensaje de transferencia:', err?.response?.status || 'sin respuesta');
     }
 
     // Notificar al profesional si existe teléfono_profesional configurado
     if (telefonoProfesional) {
       try {
         await notifyProfessional(telefonoProfesional, canonicalJid, rawText);
-        console.log(`[BOT] Notificación enviada al profesional ${telefonoProfesional}.`);
+        console.log('[BOT] Notificación enviada al profesional.');
       } catch (err) {
-        console.error(`[BOT] Error al notificar al profesional:`, err?.response?.data || err.message);
+        console.error('[BOT] Error al notificar al profesional:', err?.response?.status || 'sin respuesta');
       }
     }
 
@@ -1245,14 +1303,14 @@ app.post('/webhook/evolution', async (req, res) => {
   // ── 16. Enviar respuesta con simulación de escritura ──────────────────────
   try {
     await sendMessageWithTyping(canonicalJid, responseText, usePreview);
-    console.log(`[BOT] Mensaje enviado a cliente ${clientId} (${canonicalJid}).`);
+    console.log('[BOT] Respuesta enviada al cliente.');
   } catch (err) {
     console.error(
-      `[BOT] Error al enviar mensaje a cliente ${clientId} (${canonicalJid}):`,
-      err?.response?.data || err.message
+      '[BOT] Error al enviar la respuesta al cliente:',
+      err?.response?.status || 'sin respuesta'
     );
   }
-});
+}));
 
 // Función auxiliar para resolver el clientId a partir del JID canónico
 async function resolveClientIdByJid(canonicalJid) {
@@ -1358,10 +1416,6 @@ app.get('/health', (_req, res) => {
     status: 'ok',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
-    empresa: empresaData ? {
-      nombre: empresaData.nombre,
-      bot: empresaData.nom_bot,
-    } : null,
   });
 });
 

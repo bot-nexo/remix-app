@@ -1,71 +1,59 @@
-# Estado Actual de la Implementación (WhatsApp Autoresponder)
+# Preparación para producción — Angel Nails
 
-Este documento resume todo el progreso que hemos logrado hoy instalando el microservicio en tu PC local, y lista los pasos exactos que faltan para terminarlo en nuestra próxima sesión.
+## Arquitectura
 
----
+- Frontend React/Vite publicado en Netlify.
+- VPS Hostinger con Evolution API, el autoresponder Node.js, PostgreSQL y Redis en Docker Compose.
+- Supabase para autenticación, empresa, servicios y citas.
 
-## ✅ Lo que hemos logrado hoy
+El autoresponder genera enlaces de reserva firmados. Evolution debe llamar al webhook con un JWT HS256 configurado mediante `headers.jwt_key`. Las instancias nuevas creadas desde el panel reciben esta configuración automáticamente.
 
-1. **Evaluación de Hardware:** Validamos que tu PC (i7, 8GB RAM) es perfecta para actuar como servidor gratuito de WhatsApp durante una semana (MVP).
-2. **Instalación de Base:** Descargaste e instalaste exitosamente **Docker Desktop** y **Ngrok**.
-3. **Generación del Entorno (Archivos configurados):**
-   - Creamos el archivo `.env` que vincula tu bot con Evolution API.
-   - Creamos y ajustamos el archivo `docker-compose.yml` a su versión más estable de 2026.
-   - Descubrimos que Evolution API v2 exige bases de datos y le agregamos los servicios de **PostgreSQL** y **Redis** al docker para que no se caiga.
-4. **Túnel Público:** Levantaste correctamente Ngrok y obtuviste tu URL pública (`https://mauve-launch-uplifted.ngrok-free.dev`).
-5. **Contenedores corriendo:** Logramos que el servidor entero se descargue y se encendiera en tu PC (aunque nos faltaba arrancar Redis al final).
+## Pendiente antes del primer despliegue
 
----
+1. Configurar un dominio HTTPS para la API y añadir su origen exacto a `FRONTEND_ORIGINS`.
+2. Crear `whatsapp-autoresponder/.env` en el VPS a partir de `.env.example`. Definir valores aleatorios nuevos para `POSTGRES_PASSWORD`, `ADMIN_API_KEY`, `EVOLUTION_API_KEY`, `EVOLUTION_WEBHOOK_SECRET` y `BOOKING_LINK_SECRET`.
+3. Completar `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` y `WHATSAPP_ADMIN_USER_ID` en el entorno server-side. No publicar ni enviar aquí esos valores.
+4. Configurar `VITE_AUTORESPONDER_URL=https://api.tu-dominio.com` en Netlify y volver a desplegar el frontend.
+5. Ejecutar las migraciones de `supabase/migrations` en el orden indicado en el README. El bloqueo de tablas de citas requiere que el microservicio ya tenga el `service_role` y el secreto de reserva.
 
-## ⏳ Lo que nos falta hacer (Para nuestra próxima sesión)
+Las variables `VITE_*` se incorporan al JavaScript público. Nunca pongas en ellas la clave de Evolution, el `service_role`, `BOOKING_LINK_SECRET` o `EVOLUTION_WEBHOOK_SECRET`.
 
-Cuando vuelvas a sentarte a terminar esto, solo tendremos que ejecutar estos 3 pasos finales:
+## Arranque del VPS
 
-### 1. Reiniciar los contenedores (Asegurar la BD)
-Como agregamos Redis y Postgres, necesitaremos correr este comando una vez más para que se levanten completos:
+Desde `whatsapp-autoresponder`:
+
 ```bash
-cd C:\JDV\01_Development\FullStack\PAULA\remix-app\whatsapp-autoresponder
+docker compose config -q
 docker compose up -d --build
+docker compose ps
+docker compose logs --tail 100 whatsapp-bot evolution
 ```
 
-### 2. Configurar la Conexión de WhatsApp (Los 3 comandos finales)
-Una vez que el servidor esté corriendo sano, lanzaremos los siguientes comandos en PowerShell:
+Compose enlaza el bot y Evolution solo a loopback; el reverse proxy HTTPS del VPS publica el bot en el dominio configurado. PostgreSQL conserva la sesión de Evolution y los volúmenes mantienen los datos y la configuración.
 
-**A. Crear el Webhook (Avisarle a Evolution dónde enviar los mensajes):**
+## Instancia de WhatsApp ya existente
+
+Si la instancia se creó antes de desplegar el cambio del webhook firmado, vuelve a registrarlo. Ejecuta este comando directamente en PowerShell en el VPS y reemplaza los marcadores allí; no guardes los secretos en este archivo:
+
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:8480/webhook/set/spa-angel-nails" -Method Post -Headers @{"apikey"="evo_clave_secreta_123"} -ContentType "application/json" -Body '{"webhook": {"url": "https://mauve-launch-uplifted.ngrok-free.dev/webhook/evolution","events": ["MESSAGES_UPSERT"]}}'
+$body = @{
+   webhook = @{
+      enabled = $true
+      url = 'http://whatsapp-bot:3000/webhook/evolution'
+      headers = @{ jwt_key = '<EVOLUTION_WEBHOOK_SECRET>' }
+      byEvents = $false
+      base64 = $false
+      events = @('MESSAGES_UPSERT')
+   }
+} | ConvertTo-Json -Depth 6
+
+Invoke-RestMethod -Uri 'http://127.0.0.1:8480/webhook/set/spa-angel-nails' `
+   -Method Post `
+   -Headers @{ apikey = '<EVOLUTION_API_KEY>' } `
+   -ContentType 'application/json' `
+   -Body $body
 ```
 
-**B. Crear la Instancia del Spa:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8480/instance/create" -Method Post -Headers @{"apikey"="evo_clave_secreta_123"} -ContentType "application/json" -Body '{"instanceName": "spa-angel-nails", "integration": "WHATSAPP-BAILEYS"}'
-```
+## Prueba funcional
 
-**C. Escanear el QR:**
-```bash
-docker compose logs -f evolution
-```
-*(Aquí aparecerá el código QR en pantalla. Se escanea con el celular del Spa y listo).*
-
-### 3. ¡Probar!
-Enviar un "Hola" al WhatsApp del Spa y ver cómo nuestro Autoresponder de Node.js contesta en segundos sin tocar la base de datos de Supabase.
-
----
-*¡Guarda este archivo! Estaremos listos para retomar exactamente desde aquí cuando tengas tiempo.*
-
-
-**//////////JDV////////**
-Paso 1: Crear la sesión de WhatsApp
-```bash
-Invoke-RestMethod -Uri "http://localhost:8480/instance/create" -Method Post -Headers @{"apikey"="evo_clave_secreta_123"} -ContentType "application/json" -Body '{"instanceName": "spa-angel-nails", "integration": "WHATSAPP-BAILEYS"}'
-```
-
-Paso 2: Configurar el Webhook
-```bash
-Invoke-RestMethod -Uri "http://localhost:8480/webhook/set/spa-angel-nails" -Method Post -Headers @{"apikey"="evo_clave_secreta_123"} -ContentType "application/json" -Body '{"webhook": {"enabled": true, "url": "https://mauve-launch-uplifted.ngrok-free.dev/webhook/evolution","events": ["MESSAGES_UPSERT"]}}'
-```
-
-Paso 3: ¡Escanear el Código QR!
-```bash
-docker compose logs -f evolution
-```
+Desde un teléfono distinto, envía un mensaje al WhatsApp conectado. Comprueba que responda con el enlace firmado, ábrelo y completa una reserva de prueba. Verifica luego la cita en el panel y en Supabase. No uses una reserva real para la primera prueba.

@@ -25,6 +25,7 @@ export async function bookingRequest<T>(path: string, token: string, options: Re
 
   const headers = new Headers(options.headers);
   headers.set('Authorization', `Bearer ${token}`);
+  headers.set('ngrok-skip-browser-warning', '1');
   if (options.body) headers.set('Content-Type', 'application/json');
 
   const response = await fetch(`${AUTORESPONDER_URL.replace(/\/$/, '')}/api/booking${path}`, {

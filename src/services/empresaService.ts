@@ -16,7 +16,7 @@ export type EmpresaConfig = {
 export async function obtenerEmpresaConfig(): Promise<EmpresaConfig | null> {
   const { data, error } = await supabase
     .from('empresa') // Cambia 'empresa' por el nombre exacto de tu tabla si es diferente
-    .select('*')
+    .select('id, user_id, nombre, direccion, horario, politicas, nom_bot, color_primario, color_secundario, logo_url')
     .single();
 
   if (error) {

@@ -1551,12 +1551,15 @@ async function processAppointmentReminders() {
       if (!cita.cliente_numero || !cita.fecha_inicio || !cita.hora_inicio) continue;
 
       const horaClean = cita.hora_inicio.slice(0, 5);
-      const citaDateTimeStr = `${cita.fecha_inicio}T${horaClean}:00`;
+      // Especificar la zona horaria de Colombia (-05:00) para evitar desfases UTC en servidores VPS
+      const citaDateTimeStr = `${cita.fecha_inicio}T${horaClean}:00-05:00`;
       const citaDate = new Date(citaDateTimeStr);
       if (isNaN(citaDate.getTime())) continue;
 
       const diffMs = citaDate.getTime() - now.getTime();
       const diffHours = diffMs / (1000 * 60 * 60);
+
+      console.log(`[RECORDATORIO EVAL] Cita ${cita.id} (${cita.cliente_nombre}): Faltan ${diffHours.toFixed(2)}h`);
 
       if (diffHours < 0) continue;
 

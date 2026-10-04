@@ -989,7 +989,11 @@ app.get('/api/booking/availability', requireBookingAccess, asyncRoute(async (req
 }));
 
 app.get('/api/booking/context', requireBookingAccess, asyncRoute(async (_req, res) => {
-  const botConfig = await loadBotConfig();
+  const botConfig = await getBotConfigFromDB();
+  if (!botConfig) {
+    return res.status(503).json({ error: 'No se pudo cargar la configuración del negocio.' });
+  }
+
   return res.json({
     company: empresaData ? {
       nombre: empresaData.nombre,

@@ -21,6 +21,10 @@ BEGIN
     RAISE EXCEPTION 'Los datos de horario no son válidos';
   END IF;
 
+  IF p_fecha < CURRENT_DATE OR (p_fecha = CURRENT_DATE AND p_hora_inicio <= (CURRENT_TIME - INTERVAL '5 minutes')) THEN
+    RAISE EXCEPTION 'No puedes agendar en una fecha u hora que ya pasó';
+  END IF;
+
   SELECT hora_inicio, hora_fin
     INTO v_hora_apertura, v_hora_cierre
     FROM public.horario_atencion

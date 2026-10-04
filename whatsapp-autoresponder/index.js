@@ -920,6 +920,30 @@ async function getBookingSlots(date, serviceId, clientId, excludeAppointmentId =
     return { error: 'Fecha o servicio inválido.' };
   }
 
+  // Calcular fecha y hora actual en zona horaria de Colombia (America/Bogota)
+  const now = new Date();
+  const bogotaDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(now);
+
+  // Si la fecha solicitada es anterior a hoy, no hay horarios disponibles
+  if (date < bogotaDateStr) {
+    return { slots: [] };
+  }
+
+  const isToday = (date === bogotaDateStr);
+  let minStartMinutes = -1;
+
+  if (isToday) {
+    const bogotaTimeStr = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'America/Bogota',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(now);
+    const [nowH, nowM] = bogotaTimeStr.split(':').map(Number);
+    // Exigir al menos 15 minutos de anticipación mínima para agendar hoy
+    minStartMinutes = (nowH * 60) + (nowM || 0) + 15;
+  }
+
   const { data: service, error: serviceError } = await supabase
     .from('servicios')
     .select('duracion_minutos')
@@ -948,7 +972,7 @@ async function getBookingSlots(date, serviceId, clientId, excludeAppointmentId =
 
   const [scheduleResult, blocksResult, appointmentsResult] = await Promise.all([
     supabase.from('horario_atencion').select('hora_inicio, hora_fin, activo')
-      .eq('user_id', WHATSAPP_ADMIN_USER_ID).eq('fecha', date).eq('activo', true).maybeSingle(),
+      .eq('user_id', WHATSAPP_ADMIN_USER_ID).eq('fecha', date).maybeSingle(),
     supabase.from('bloqueos_agenda').select('hora_inicio, hora_fin, bloqueo_completo')
       .eq('user_id', WHATSAPP_ADMIN_USER_ID).eq('fecha', date),
     supabase.from('citas').select('id, hora_inicio, hora_fin, estado')
@@ -957,18 +981,32 @@ async function getBookingSlots(date, serviceId, clientId, excludeAppointmentId =
 
   const queryError = scheduleResult.error || blocksResult.error || appointmentsResult.error;
   if (queryError) return { databaseError: queryError };
-  if (!scheduleResult.data?.activo) return { slots: [] };
+
+  // Si el día está marcado como no activo o no está configurado, no hay slots
+  if (!scheduleResult.data || scheduleResult.data.activo === false) {
+    return { slots: [] };
+  }
+
+  const blocks = blocksResult.data || [];
+  // Si todo el día está bloqueado por la agenda, no hay slots
+  if (blocks.some((b) => b.bloqueo_completo)) {
+    return { slots: [] };
+  }
 
   const opening = timeToMinutes(scheduleResult.data.hora_inicio);
   const closing = timeToMinutes(scheduleResult.data.hora_fin);
   const duration = service.duracion_minutos;
-  const blocks = blocksResult.data || [];
   const appointments = (appointmentsResult.data || []).filter((appointment) =>
     appointment.id !== excludeAppointmentId && ACTIVE_APPOINTMENT_STATES.has(appointment.estado?.toUpperCase())
   );
   const slots = [];
 
   for (let start = opening; start + duration <= closing; start += duration) {
+    // Si la fecha es HOY y la hora ya pasó (o falta menos de 15m), descartar
+    if (isToday && start < minStartMinutes) {
+      continue;
+    }
+
     const end = start + duration;
     const blocked = blocks.some((block) => block.bloqueo_completo ||
       (start < timeToMinutes(block.hora_fin) && end > timeToMinutes(block.hora_inicio)));
@@ -989,6 +1027,7 @@ app.get('/api/booking/availability', requireBookingAccess, asyncRoute(async (req
 }));
 
 app.get('/api/booking/context', requireBookingAccess, asyncRoute(async (_req, res) => {
+  await loadEmpresaData();
   const botConfig = await getBotConfigFromDB();
   if (!botConfig) {
     return res.status(503).json({ error: 'No se pudo cargar la configuración del negocio.' });

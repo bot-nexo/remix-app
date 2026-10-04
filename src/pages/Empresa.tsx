@@ -13,6 +13,7 @@ export default function Empresa() {
 
   const [empresaId, setEmpresaId] = useState<string | null>(null);
   const [nombre, setNombre] = useState('');
+  const [nomBot, setNomBot] = useState('Mia');
   const [direccion, setDireccion] = useState('');
   const [horario, setHorario] = useState('');
   const [politicas, setPoliticas] = useState('');
@@ -40,6 +41,7 @@ export default function Empresa() {
     if (data) {
       setEmpresaId(data.id);
       setNombre(data.nombre || '');
+      setNomBot(data.nom_bot || 'Mia');
       setDireccion(data.direccion || '');
       setHorario(data.horario || '');
       setPoliticas(data.politicas || '');
@@ -76,7 +78,7 @@ export default function Empresa() {
       }
 
       const payload = {
-        user_id: user.id, nombre, direccion, horario, politicas,
+        user_id: user.id, nombre, nom_bot: nomBot, direccion, horario, politicas,
         color_primario: colorPrimario, color_secundario: colorSecundario,
         logo_url: currentLogoUrl
       };
@@ -158,6 +160,15 @@ export default function Empresa() {
                 <input
                   type="text" required value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Nombre de la Asistente Virtual (Bot WhatsApp)</label>
+                <input
+                  type="text" value={nomBot}
+                  onChange={(e) => setNomBot(e.target.value)}
+                  placeholder="Ej: Mia, Paula, Sofía..."
                   className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all"
                 />
               </div>

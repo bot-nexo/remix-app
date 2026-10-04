@@ -65,7 +65,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
             <div>
               <p className="font-semibold text-[var(--brand-primary)]">Políticas del Servicio</p>
               <p className="text-slate-400 whitespace-pre-line leading-relaxed">
-                {empresa?.politicas || 'Tolerancia máxima de 10 minutos de retraso. Cancelaciones con al menos 2 horas de anticipación.'}
+                {empresa?.politicas || 'Tolerancia máxima de 15 minutos de retraso. Cancelaciones con al menos 2 horas de anticipación.'}
               </p>
             </div>
           </div>

@@ -13,7 +13,7 @@ export function getBookingErrorMessage(error: unknown, fallback: string): string
   if (error instanceof BookingRequestError) {
     if (error.status === 401) return 'El enlace de reserva ya no es válido. Solicita uno nuevo por WhatsApp.';
     if (error.status === 409) return error.message || 'La cita cambió. Actualiza los horarios e inténtalo de nuevo.';
-    if (error.status >= 500) return 'El servicio de reservas no está disponible ahora. Inténtalo de nuevo en unos minutos.';
+    if (error.status >= 500) return error.message || 'El servicio de reservas no está disponible ahora. Inténtalo de nuevo en unos minutos.';
     return error.message || fallback;
   }
   return error instanceof Error && error.message ? error.message : fallback;

@@ -1043,8 +1043,18 @@ app.post('/api/booking/appointments', requireBookingAccess, asyncRoute(async (re
     p_hora_inicio: startTime,
   });
   if (error) {
-    const status = error.code === 'P0001' ? 409 : 503;
-    return res.status(status).json({ error: status === 409 ? error.message : 'No se pudo guardar la cita.' });
+    console.error('[Booking Error] Error en RPC reservar_cita_segura:', error);
+    let status = 503;
+    let message = error.message || 'No se pudo guardar la cita.';
+
+    if (error.code === 'P0001') {
+      status = 409;
+    } else if (error.code === 'PGRST202') {
+      status = 503;
+      message = 'Error de servidor: La función "reservar_cita_segura" no está instalada en Supabase (migración pendiente).';
+    }
+
+    return res.status(status).json({ error: message, details: error.details || null });
   }
   return res.status(201).json({ appointment: data });
 }));
@@ -1057,7 +1067,10 @@ app.post('/api/booking/appointments/:id/cancel', requireBookingAccess, asyncRout
     .eq('user_id', WHATSAPP_ADMIN_USER_ID)
     .eq('cliente_id', req.bookingClientId);
   const { data: cita, error: readError } = await query.maybeSingle();
-  if (readError) return res.status(503).json({ error: 'No se pudo consultar la cita.' });
+  if (readError) {
+    console.error('[Booking Error] Error al consultar cita para cancelar:', readError);
+    return res.status(503).json({ error: readError.message || 'No se pudo consultar la cita.' });
+  }
   if (!cita || !ACTIVE_APPOINTMENT_STATES.has(cita.estado?.toUpperCase())) {
     return res.status(404).json({ error: 'No se encontró una cita activa para este enlace.' });
   }
@@ -1070,7 +1083,10 @@ app.post('/api/booking/appointments/:id/cancel', requireBookingAccess, asyncRout
     .eq('estado', cita.estado)
     .select('id')
     .maybeSingle();
-  if (error) return res.status(503).json({ error: 'No se pudo cancelar la cita.' });
+  if (error) {
+    console.error('[Booking Error] Error al cancelar cita:', error);
+    return res.status(503).json({ error: error.message || 'No se pudo cancelar la cita.' });
+  }
   if (!data) return res.status(409).json({ error: 'La cita cambió de estado; actualiza e intenta de nuevo.' });
   return res.json({ ok: true });
 }));
@@ -1090,8 +1106,18 @@ app.post('/api/booking/appointments/:id/reschedule', requireBookingAccess, async
     p_hora_inicio: startTime,
   });
   if (error) {
-    const status = error.code === 'P0001' ? 409 : 503;
-    return res.status(status).json({ error: status === 409 ? error.message : 'No se pudo reagendar la cita.' });
+    console.error('[Booking Error] Error en RPC reagendar_cita_segura:', error);
+    let status = 503;
+    let message = error.message || 'No se pudo reagendar la cita.';
+
+    if (error.code === 'P0001') {
+      status = 409;
+    } else if (error.code === 'PGRST202') {
+      status = 503;
+      message = 'Error de servidor: La función "reagendar_cita_segura" no está instalada en Supabase (migración pendiente).';
+    }
+
+    return res.status(status).json({ error: message, details: error.details || null });
   }
   return res.json({ appointment: data });
 }));

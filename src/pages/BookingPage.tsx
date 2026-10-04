@@ -21,17 +21,32 @@ import PasoResumen from '../components/booking/PasoResumen';
 import PasoServicio from '../components/booking/PasoServicio';
 import PasoServiciosPrecios from '../components/booking/PasoServiciosPrecios';
 import { findAngelPalette } from '../constants/angelPalettes';
-import { bookingRequest, getBookingErrorMessage } from '../services/bookingApi';
+import ModalIdentificacionCliente from '../components/booking/ModalIdentificacionCliente';
+import { bookingRequest, getBookingErrorMessage, identificarCliente } from '../services/bookingApi';
 import { reagendarCita } from '../services/misCitas';
 
 //******************************************* */
 export default function BookingPage() {
-  const [customerAccess] = useState<{ id: string; token: string } | null>(() => {
+  const [customerAccess, setCustomerAccess] = useState<{ id: string; token: string } | null>(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
     const token = urlParams.get('token');
-    return id && token ? { id, token } : null;
+    if (id && token) {
+      try {
+        sessionStorage.setItem('booking_access', JSON.stringify({ id, token }));
+      } catch {}
+      return { id, token };
+    }
+    try {
+      const saved = sessionStorage.getItem('booking_access');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.id && parsed.token) return parsed;
+      }
+    } catch {}
+    return null;
   });
+
   const idCliente = customerAccess?.id || null;
   const bookingToken = customerAccess?.token || '';
   const { showToast } = useToast();
@@ -79,6 +94,16 @@ export default function BookingPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleIdentificarCliente(telefono: string, nombre: string) {
+    const res = await identificarCliente(telefono, nombre);
+    setCustomerAccess({ id: res.id, token: res.token });
+    setCliente({ id: res.id, nombre: res.nombre || nombre, telefono: res.telefono || telefono });
+    try {
+      sessionStorage.setItem('booking_access', JSON.stringify({ id: res.id, token: res.token }));
+    } catch {}
+    showToast('¡Número verificado! Bienvenido a reservas.', 'success');
   }
 
   function manejarSeleccionMenu(opcion: number) {
@@ -146,10 +171,7 @@ export default function BookingPage() {
   if (!idCliente || !bookingToken) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-[#130d11] px-5 text-center text-white">
-        <div className="max-w-sm">
-          <h1 className="text-xl font-semibold">Enlace de reserva no válido</h1>
-          <p className="mt-2 text-sm text-white/70">Abre el enlace personal que recibiste por WhatsApp para acceder al catálogo.</p>
-        </div>
+        <ModalIdentificacionCliente onIdentificar={handleIdentificarCliente} colorPrimario={colorPrimario} />
       </main>
     );
   }

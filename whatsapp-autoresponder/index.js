@@ -1019,6 +1019,31 @@ async function getBookingSlots(date, serviceId, clientId, excludeAppointmentId =
   return { slots };
 }
 
+app.post('/api/booking/identify', asyncRoute(async (req, res) => {
+  const { phone, name } = req.body || {};
+  const cleanPhone = typeof phone === 'string' ? phone.replace(/\D/g, '') : '';
+  if (!cleanPhone || cleanPhone.length < 7 || cleanPhone.length > 15) {
+    return res.status(400).json({ error: 'Ingresa un número de WhatsApp válido.' });
+  }
+
+  const clientInfo = await findOrCreateClient(cleanPhone, name || '');
+  if (!clientInfo || !clientInfo.id) {
+    return res.status(503).json({ error: 'No se pudo identificar o registrar tu cuenta.' });
+  }
+
+  const token = createBookingToken(clientInfo.id);
+  if (!token) {
+    return res.status(503).json({ error: 'Error al generar el acceso seguro.' });
+  }
+
+  return res.json({
+    id: clientInfo.id,
+    token: token,
+    nombre: name || '',
+    telefono: cleanPhone,
+  });
+}));
+
 app.get('/api/booking/availability', requireBookingAccess, asyncRoute(async (req, res) => {
   const result = await getBookingSlots(req.query.date, req.query.serviceId, req.bookingClientId, req.query.excludeAppointmentId);
   if (result.databaseError) return res.status(503).json({ error: 'No se pudo consultar la disponibilidad.' });

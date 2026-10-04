@@ -36,3 +36,17 @@ export async function bookingRequest<T>(path: string, token: string, options: Re
   if (!response.ok) throw new BookingRequestError(response.status, result.error || 'No se pudo completar la operación.');
   return result as T;
 }
+
+export async function identificarCliente(telefono: string, nombre?: string): Promise<{ id: string; token: string; nombre: string; telefono: string }> {
+  if (!AUTORESPONDER_URL) throw new Error('El servicio de reservas no está configurado.');
+
+  const response = await fetch(`${AUTORESPONDER_URL.replace(/\/$/, '')}/api/booking/identify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone: telefono, name: nombre }),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new BookingRequestError(response.status, result.error || 'No se pudo identificar tu número.');
+  return result;
+}

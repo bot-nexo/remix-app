@@ -1457,6 +1457,109 @@ app.use((error, _req, res, _next) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Worker de Recordatorios Automáticos (24 Horas y 2 Horas Antes)
+// ─────────────────────────────────────────────────────────────────────────────
+async function processAppointmentReminders() {
+  if (!SUPABASE_SERVICE_ROLE_KEY || !WHATSAPP_ADMIN_USER_ID || !BOOKING_LINK_SECRET) {
+    return;
+  }
+
+  try {
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+
+    const { data: citas, error } = await supabase
+      .from('citas')
+      .select('id, user_id, cliente_id, cliente_nombre, cliente_numero, servicio_id, fecha_inicio, hora_inicio, estado, recordatorio_24h_enviado, recordatorio_2h_enviado, servicios(nombre)')
+      .eq('user_id', WHATSAPP_ADMIN_USER_ID)
+      .gte('fecha_inicio', todayStr)
+      .limit(50);
+
+    if (error || !Array.isArray(citas)) {
+      if (error && error.code !== '42703') {
+        console.error('[RECORDATORIO] Error al consultar citas para recordatorios:', error.message);
+      }
+      return;
+    }
+
+    for (const cita of citas) {
+      if (!ACTIVE_APPOINTMENT_STATES.has(cita.estado?.toUpperCase())) continue;
+      if (!cita.cliente_numero || !cita.fecha_inicio || !cita.hora_inicio) continue;
+
+      const horaClean = cita.hora_inicio.slice(0, 5);
+      const citaDateTimeStr = `${cita.fecha_inicio}T${horaClean}:00`;
+      const citaDate = new Date(citaDateTimeStr);
+      if (isNaN(citaDate.getTime())) continue;
+
+      const diffMs = citaDate.getTime() - now.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+
+      if (diffHours < 0) continue;
+
+      let bookingUrl = PWA_URL;
+      if (cita.cliente_id) {
+        const token = createBookingToken(cita.cliente_id);
+        if (token) {
+          const url = new URL(PWA_URL);
+          url.searchParams.set('id', cita.cliente_id);
+          url.searchParams.set('token', token);
+          bookingUrl = url.toString();
+        }
+      }
+
+      const servicioNombre = cita.servicios?.nombre || 'tu servicio';
+      const cleanNum = cita.cliente_numero.replace(/\D/g, '');
+      if (!cleanNum) continue;
+
+      const toRecipient = cita.cliente_numero.includes('@')
+        ? cita.cliente_numero
+        : `${cleanNum}@s.whatsapp.net`;
+
+      // 1. Recordatorio 24 horas antes (ventana entre 23h y 25h)
+      if (!cita.recordatorio_24h_enviado && diffHours >= 23 && diffHours <= 25) {
+        const msg24h = `🌸 *Recordatorio de Cita - Angel Nails* 💅\n\n` +
+          `Hola *${cita.cliente_nombre || 'Cliente'}*, te recordamos tu cita para mañana para *${servicioNombre}*:\n\n` +
+          `📅 *Fecha:* ${cita.fecha_inicio}\n` +
+          `⏰ *Hora:* ${horaClean}\n\n` +
+          `⚠️ *¿Necesitas cambiar o cancelar tu cita?*\n` +
+          `Si no puedes asistir, por favor reagenda o cancela con anticipación para liberar tu lugar a otra clienta:\n` +
+          `👉 ${bookingUrl}\n\n` +
+          `¡Te esperamos! ✨`;
+
+        try {
+          await sendEvolutionMessage(toRecipient, msg24h, true);
+          await supabase.from('citas').update({ recordatorio_24h_enviado: true }).eq('id', cita.id);
+          console.log(`[RECORDATORIO] Recordatorio de 24h enviado a ${cita.cliente_nombre} (${cleanNum})`);
+        } catch (sendErr) {
+          console.error(`[RECORDATORIO] Error al enviar recordatorio 24h a ${cita.id}:`, sendErr.message);
+        }
+      }
+
+      // 2. Recordatorio 2 horas antes (ventana entre 1.5h y 2.5h)
+      if (!cita.recordatorio_2h_enviado && diffHours >= 1.5 && diffHours <= 2.5) {
+        const msg2h = `⏳ *¡Tu cita es en 2 horas! - Angel Nails* 💅\n\n` +
+          `Hola *${cita.cliente_nombre || 'Cliente'}*, te recordamos tu cita de hoy:\n\n` +
+          `💅 *Servicio:* ${servicioNombre}\n` +
+          `⏰ *Hora:* ${horaClean}\n\n` +
+          `Si tuviste algún inconveniente de última hora, por favor reagenda o cancela aquí para liberar tu espacio:\n` +
+          `👉 ${bookingUrl}\n\n` +
+          `¡Nos vemos pronto! 💖`;
+
+        try {
+          await sendEvolutionMessage(toRecipient, msg2h, true);
+          await supabase.from('citas').update({ recordatorio_2h_enviado: true }).eq('id', cita.id);
+          console.log(`[RECORDATORIO] Recordatorio de 2h enviado a ${cita.cliente_nombre} (${cleanNum})`);
+        } catch (sendErr) {
+          console.error(`[RECORDATORIO] Error al enviar recordatorio 2h a ${cita.id}:`, sendErr.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[RECORDATORIO] Error general en processAppointmentReminders:', err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Arranque del servidor
 // ─────────────────────────────────────────────────────────────────────────────
 app.listen(PORT, async () => {
@@ -1473,6 +1576,11 @@ app.listen(PORT, async () => {
 
   // Cargar en caché los clientes en estado HUMANO
   await loadHumanStateCache();
+
+  // Iniciar worker de recordatorios de citas
+  processAppointmentReminders().catch(() => {});
+  setInterval(processAppointmentReminders, 10 * 60 * 1000);
+  console.log('  ⏰  Worker de recordatorios automáticos (24h/2h): ACTIVADO');
 
   console.log('─────────────────────────────────────────────────');
 });

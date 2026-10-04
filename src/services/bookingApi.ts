@@ -50,3 +50,12 @@ export async function identificarCliente(telefono: string, nombre?: string): Pro
   if (!response.ok) throw new BookingRequestError(response.status, result.error || 'No se pudo identificar tu número.');
   return result;
 }
+
+export async function obtenerInformacionPublica(): Promise<{ company: any; professionalPhone: string | null }> {
+  if (!AUTORESPONDER_URL) throw new Error('El servicio de reservas no está configurado.');
+
+  const response = await fetch(`${AUTORESPONDER_URL.replace(/\/$/, '')}/api/booking/public-info`);
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new BookingRequestError(response.status, result.error || 'No se pudo cargar la información pública.');
+  return result;
+}

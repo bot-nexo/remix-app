@@ -26,3 +26,15 @@ export async function obtenerEmpresaConfig(): Promise<EmpresaConfig | null> {
 
   return data as EmpresaConfig;
 }
+
+export async function obtenerTelefonoProfesional(userId?: string): Promise<string> {
+  try {
+    let query = supabase.from('configuracion').select('valor').eq('clave', 'telefono_profesional');
+    if (userId) query = query.eq('user_id', userId);
+    const { data } = await query.limit(1).maybeSingle();
+    return data?.valor || '';
+  } catch (err) {
+    console.error('Error al obtener teléfono profesional:', err);
+    return '';
+  }
+}

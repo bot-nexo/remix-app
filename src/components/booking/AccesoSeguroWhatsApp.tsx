@@ -15,10 +15,8 @@ export default function AccesoSeguroWhatsApp({
   colorSecundario = '#7B3F54',
 }: Props) {
   const cleanPhone = (telefonoProfesional || '').replace(/\D/g, '');
-  // Si no hay teléfono específico, usar número formateado para WhatsApp
-  const targetPhone = cleanPhone || '573001234567';
   const waText = encodeURIComponent('Hola, deseo acceder a mis reservas');
-  const waLink = `https://wa.me/${targetPhone}?text=${waText}`;
+  const waLink = cleanPhone ? `https://wa.me/${cleanPhone}?text=${waText}` : '#';
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-[#130d11] px-4 py-10 text-white selection:bg-white/10">
@@ -81,13 +79,22 @@ export default function AccesoSeguroWhatsApp({
           {/* Botón Principal a WhatsApp */}
           <a
             href={waLink}
-            target="_blank"
+            target={cleanPhone ? '_blank' : '_self'}
             rel="noopener noreferrer"
-            className="group relative flex w-full items-center justify-center gap-2.5 rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-900/40 transition-all hover:bg-emerald-500 active:scale-[0.98]"
+            onClick={(e) => {
+              if (!cleanPhone) {
+                e.preventDefault();
+              }
+            }}
+            className={`group relative flex w-full items-center justify-center gap-2.5 rounded-2xl px-5 py-4 text-sm font-bold text-white shadow-lg transition-all ${
+              cleanPhone
+                ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40 active:scale-[0.98]'
+                : 'bg-slate-700/60 cursor-not-allowed opacity-75'
+            }`}
           >
             <MessageCircle size={20} className="fill-current" />
-            <span>Solicitar mi Enlace por WhatsApp</span>
-            <ArrowUpRight size={18} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            <span>{cleanPhone ? 'Solicitar mi Enlace por WhatsApp' : 'Cargando WhatsApp del negocio...'}</span>
+            {cleanPhone && <ArrowUpRight size={18} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />}
           </a>
 
           <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-slate-500">

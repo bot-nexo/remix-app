@@ -1051,6 +1051,24 @@ app.get('/api/booking/availability', requireBookingAccess, asyncRoute(async (req
   return res.json({ slots: result.slots });
 }));
 
+app.get('/api/booking/public-info', asyncRoute(async (_req, res) => {
+  await loadEmpresaData();
+  const botConfig = await getBotConfigFromDB();
+  return res.json({
+    company: empresaData ? {
+      nombre: empresaData.nombre,
+      direccion: empresaData.direccion,
+      horario: empresaData.horario,
+      politicas: empresaData.politicas,
+      nom_bot: empresaData.nom_bot,
+      logo_url: empresaData.logo_url,
+      color_primario: empresaData.color_primario,
+      color_secundario: empresaData.color_secundario,
+    } : null,
+    professionalPhone: botConfig?.telefonoProfesional || null,
+  });
+}));
+
 app.get('/api/booking/context', requireBookingAccess, asyncRoute(async (_req, res) => {
   await loadEmpresaData();
   const botConfig = await getBotConfigFromDB();

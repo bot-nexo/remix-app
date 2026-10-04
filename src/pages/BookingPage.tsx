@@ -3,7 +3,7 @@ import { useToast } from '../contexts/ToastContext';
 import { formatearPrecio } from '../functions';
 import { crearCita } from '../services/citasService';
 import { obtenerHorariosDisponibles } from '../services/disponibilidadService';
-import { obtenerEmpresaConfig } from '../services/empresaService';
+import { obtenerEmpresaConfig, obtenerTelefonoProfesional } from '../services/empresaService';
 import { DatosCliente, EmpresaConfig, Paso, Servicio } from '../types/types';
 
 import EnDesarrollo from '../components/booking/EnDesarrollo';
@@ -22,7 +22,7 @@ import PasoServicio from '../components/booking/PasoServicio';
 import PasoServiciosPrecios from '../components/booking/PasoServiciosPrecios';
 import { findAngelPalette } from '../constants/angelPalettes';
 import AccesoSeguroWhatsApp from '../components/booking/AccesoSeguroWhatsApp';
-import { bookingRequest, getBookingErrorMessage } from '../services/bookingApi';
+import { bookingRequest, getBookingErrorMessage, obtenerInformacionPublica } from '../services/bookingApi';
 import { reagendarCita } from '../services/misCitas';
 
 //******************************************* */
@@ -82,8 +82,17 @@ export default function BookingPage() {
 
   async function cargarEmpresaInicial() {
     try {
-      const data = await obtenerEmpresaConfig();
-      if (data) setEmpresa(data);
+      const [empresaData, publicData] = await Promise.all([
+        obtenerEmpresaConfig(),
+        obtenerInformacionPublica().catch(() => null),
+      ]);
+      if (empresaData) setEmpresa(empresaData);
+      if (publicData?.professionalPhone) {
+        setTelefonoProfesional(publicData.professionalPhone);
+      } else if (empresaData?.user_id) {
+        const phone = await obtenerTelefonoProfesional(empresaData.user_id);
+        if (phone) setTelefonoProfesional(phone);
+      }
     } catch (err) {
       console.error(err);
     }

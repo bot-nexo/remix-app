@@ -30,7 +30,7 @@ BEGIN
     RAISE EXCEPTION 'La fecha no está habilitada para reservas';
   END IF;
 
-  v_hora_fin := p_hora_inicio + make_interval(mins => p_duracion_minutos);
+  v_hora_fin := p_hora_inicio + (p_duracion_minutos * INTERVAL '1 minute');
   IF v_hora_fin <= p_hora_inicio OR p_hora_inicio < v_hora_apertura OR v_hora_fin > v_hora_cierre THEN
     RAISE EXCEPTION 'El horario está fuera del horario de atención';
   END IF;
@@ -58,7 +58,7 @@ BEGIN
        AND c.hora_inicio < v_hora_fin
        AND COALESCE(
          c.hora_fin,
-         c.hora_inicio + make_interval(mins => COALESCE(c.duracion_servicio, 30))
+         c.hora_inicio + (COALESCE(c.duracion_servicio, 30) * INTERVAL '1 minute')
        ) > p_hora_inicio
   ) THEN
     RAISE EXCEPTION 'Ese horario acaba de ser ocupado';
@@ -111,7 +111,7 @@ BEGIN
     user_id, cliente_id, cliente_nombre, cliente_numero, servicio_id,
     fecha_inicio, hora_inicio, hora_fin, duracion_servicio, estado
   ) VALUES (
-    p_user_id, p_cliente_id, BTRIM(p_cliente_nombre), BTRIM(p_cliente_numero), p_servicio_id,
+    p_user_id, p_cliente_id::uuid, BTRIM(p_cliente_nombre), BTRIM(p_cliente_numero), p_servicio_id,
     p_fecha, p_hora_inicio, v_hora_fin, v_duracion, 'AGENDADO'
   )
   RETURNING * INTO v_cita;
@@ -144,7 +144,7 @@ BEGIN
     FROM public.citas
    WHERE id = p_cita_id
      AND user_id = p_user_id
-     AND cliente_id = p_cliente_id
+     AND cliente_id::text = p_cliente_id
      AND UPPER(BTRIM(COALESCE(estado, ''))) IN ('AGENDADO', 'AGENDADA', 'PENDIENTE', 'EN_ESPERA')
    FOR UPDATE;
   IF NOT FOUND THEN

@@ -21,13 +21,13 @@ import PasoResumen from '../components/booking/PasoResumen';
 import PasoServicio from '../components/booking/PasoServicio';
 import PasoServiciosPrecios from '../components/booking/PasoServiciosPrecios';
 import { findAngelPalette } from '../constants/angelPalettes';
-import ModalIdentificacionCliente from '../components/booking/ModalIdentificacionCliente';
-import { bookingRequest, getBookingErrorMessage, identificarCliente } from '../services/bookingApi';
+import AccesoSeguroWhatsApp from '../components/booking/AccesoSeguroWhatsApp';
+import { bookingRequest, getBookingErrorMessage } from '../services/bookingApi';
 import { reagendarCita } from '../services/misCitas';
 
 //******************************************* */
 export default function BookingPage() {
-  const [customerAccess, setCustomerAccess] = useState<{ id: string; token: string } | null>(() => {
+  const [customerAccess] = useState<{ id: string; token: string } | null>(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
     const token = urlParams.get('token');
@@ -72,12 +72,22 @@ export default function BookingPage() {
 
   //************************************************ */
   useEffect(() => {
-    if (!idCliente || !bookingToken) {
+    cargarEmpresaInicial();
+    if (idCliente && bookingToken) {
+      cargarDatosIniciales();
+    } else {
       setLoading(false);
-      return;
     }
-    cargarDatosIniciales();
   }, [idCliente, bookingToken]);
+
+  async function cargarEmpresaInicial() {
+    try {
+      const data = await obtenerEmpresaConfig();
+      if (data) setEmpresa(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   async function cargarDatosIniciales() {
     try {
@@ -94,16 +104,6 @@ export default function BookingPage() {
     } finally {
       setLoading(false);
     }
-  }
-
-  async function handleIdentificarCliente(telefono: string, nombre: string) {
-    const res = await identificarCliente(telefono, nombre);
-    setCustomerAccess({ id: res.id, token: res.token });
-    setCliente({ id: res.id, nombre: res.nombre || nombre, telefono: res.telefono || telefono });
-    try {
-      sessionStorage.setItem('booking_access', JSON.stringify({ id: res.id, token: res.token }));
-    } catch {}
-    showToast('¡Número verificado! Bienvenido a reservas.', 'success');
   }
 
   function manejarSeleccionMenu(opcion: number) {
@@ -170,9 +170,12 @@ export default function BookingPage() {
 
   if (!idCliente || !bookingToken) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-[#130d11] px-5 text-center text-white">
-        <ModalIdentificacionCliente onIdentificar={handleIdentificarCliente} colorPrimario={colorPrimario} />
-      </main>
+      <AccesoSeguroWhatsApp
+        empresa={empresa}
+        telefonoProfesional={telefonoProfesional}
+        colorPrimario={colorPrimario}
+        colorSecundario={colorSecundario}
+      />
     );
   }
 

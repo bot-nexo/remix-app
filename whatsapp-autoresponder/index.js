@@ -772,12 +772,18 @@ app.use((req, res, next) => {
     return res.status(403).json({ error: 'Origen no permitido.' });
   }
 
-  if (origin) {
+ /*  if (origin) {
     res.set('Access-Control-Allow-Origin', origin);
     res.set('Vary', 'Origin');
     res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, ngrok-skip-browser-warning');
     res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  }
+  } */
+  if (origin) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Vary', 'Origin');
+    res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, apikey');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  };
 
   if (req.method === 'OPTIONS') return res.sendStatus(origin ? 204 : 403);
   next();

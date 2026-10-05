@@ -27,7 +27,7 @@ import { reagendarCita } from '../services/misCitas';
 
 //******************************************* */
 export default function BookingPage() {
-  const [customerAccess] = useState<{ id: string; token: string } | null>(() => {
+  const [customerAccess, setCustomerAccess] = useState<{ id: string; token: string } | null>(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
     const token = urlParams.get('token');
@@ -184,6 +184,7 @@ export default function BookingPage() {
         telefonoProfesional={telefonoProfesional}
         colorPrimario={colorPrimario}
         colorSecundario={colorSecundario}
+        onAccesoConcedido={(acc) => setCustomerAccess(acc)}
       />
     );
   }

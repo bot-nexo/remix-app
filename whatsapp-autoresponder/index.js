@@ -430,70 +430,81 @@ async function loadEmpresaData() {
 
 /**
  * Busca un cliente por teléfono o LID. Si no existe, lo crea.
+ * Corrige la diferenciación entre teléfono (<=12 dígitos) y LID privacy Meta (>=14 dígitos).
  * @param {string} identifier - Número o LID limpio (solo dígitos).
  * @param {string} pushName   - Nombre del cliente desde Evolution (opcional).
  * @param {boolean} isLid      - Si el identificador es un LID.
- * @returns {Promise<{ id: string } | null>}
+ * @param {string} explicitPhone - Teléfono explícito enviado si se conoce.
+ * @returns {Promise<{ id: string, nombre?: string, numero?: string, lid?: string } | null>}
  */
-async function findOrCreateClient(identifier, pushName = '', isLid = false) {
+async function findOrCreateClient(identifier, pushName = '', isLid = false, explicitPhone = null) {
   try {
+    const cleanId = (identifier || '').replace(/\D/g, '');
+    const cleanPhone = (explicitPhone || '').replace(/\D/g, '');
+
+    // Un número telefónico colombiano/internacional tiene <= 12 dígitos (ej: 573245631084)
+    // Un LID de Meta privacy tiene >= 14 dígitos (ej: 268225153638543)
+    let phoneToUse = cleanPhone || (!isLid && cleanId.length <= 12 ? cleanId : null);
+    let lidToUse = isLid || cleanId.length > 12 ? cleanId : null;
+
     let cliente = null;
 
-    if (isLid) {
-      const { data: lidData, error: lidError } = await supabase
+    // 1. Buscar primero en BD por número
+    if (phoneToUse) {
+      const { data: phoneData } = await supabase
         .from('clientes')
         .select('id, numero, lid, nombre')
-        .eq('lid', identifier)
-        .limit(1);
+        .eq('numero', phoneToUse)
+        .maybeSingle();
 
-      if (lidError) {
-        console.error('[BD] Error al buscar cliente por LID:', lidError.message);
-        return null;
-      }
+      if (phoneData) cliente = phoneData;
+    }
 
-      if (lidData && lidData.length > 0) {
-        cliente = lidData[0];
-      }
-    } else {
-      const { data: phoneData, error: phoneError } = await supabase
+    // Buscar por LID si no se encontró por número
+    if (!cliente && lidToUse) {
+      const { data: lidData } = await supabase
         .from('clientes')
         .select('id, numero, lid, nombre')
-        .eq('numero', identifier)
-        .limit(1);
+        .eq('lid', lidToUse)
+        .maybeSingle();
 
-      if (phoneError) {
-        console.error('[BD] Error al buscar cliente por número:', phoneError.message);
-        return null;
-      }
-
-      if (phoneData && phoneData.length > 0) {
-        cliente = phoneData[0];
-      }
+      if (lidData) cliente = lidData;
     }
 
-    // Si no existe, crearlo
-    if (!cliente) {
-      const nombre = pushName || 'Cliente WhatsApp';
-
-      const { data: insertData, error: insertError } = await supabase
-        .from('clientes')
-        .insert({
-          nombre: nombre,
-          numero: isLid ? null : identifier,
-          lid: isLid ? identifier : null,
-        })
-        .select('id')
-        .single();
-
-      if (insertError) {
-        console.error('[BD] Error al crear cliente:', insertError.message);
-        return null;
+    // Si el cliente ya existe pero le faltaba el número o el LID, actualizarlo para reconciliar (Merge)
+    if (cliente) {
+      const updates = {};
+      if (phoneToUse && !cliente.numero) updates.numero = phoneToUse;
+      if (lidToUse && !cliente.lid) updates.lid = lidToUse;
+      if (pushName && pushName !== 'Cliente WhatsApp' && cliente.nombre === 'Cliente WhatsApp') {
+        updates.nombre = pushName;
       }
 
-      return { id: insertData.id };
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('clientes').update(updates).eq('id', cliente.id);
+      }
+
+      return { id: cliente.id, ...cliente, ...updates };
     }
 
-    return { id: cliente.id };
+    // 2. Si no existe, crearlo correctamente en Supabase
+    const nombreFinal = pushName || 'Cliente WhatsApp';
+    const { data: insertData, error: insertError } = await supabase
+      .from('clientes')
+      .insert({
+        nombre: nombreFinal,
+        numero: phoneToUse,
+        lid: lidToUse,
+      })
+      .select('id, nombre, numero, lid')
+      .single();
+
+    if (insertError) {
+      console.error('[BD] Error al crear cliente:', insertError.message);
+      return null;
+    }
+
+    return insertData;
   } catch (err) {
     console.error('[BD] Error inesperado en findOrCreateClient:', err.message);
     return null;
@@ -1635,6 +1646,55 @@ app.use((error, _req, res, _next) => {
   console.error('[HTTP] Error inesperado:', error?.stack || error?.message || error);
   if (res.headersSent) return;
   return res.status(500).json({ error: 'Ocurrió un error inesperado. Intenta de nuevo.' });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ruta API: POST /api/verify-or-create-client
+// Permite a la PWA o al Panel Admin verificar/crear una clienta por su teléfono y nombre
+// y retornar un token de acceso seguro para agendar de forma directa.
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/verify-or-create-client', async (req, res) => {
+  const { nombre, telefono } = req.body || {};
+
+  if (!telefono || !telefono.trim()) {
+    return res.status(400).json({ error: 'Ingresa un número telefónico válido.' });
+  }
+
+  const cleanPhone = telefono.replace(/\D/g, '');
+  if (cleanPhone.length < 7) {
+    return res.status(400).json({ error: 'El número telefónico es demasiado corto.' });
+  }
+
+  // Normalizar teléfono colombiano si viene en 10 dígitos empezando por 3
+  const fullPhone = (cleanPhone.length === 10 && cleanPhone.startsWith('3'))
+    ? `57${cleanPhone}`
+    : cleanPhone;
+
+  try {
+    const client = await findOrCreateClient(fullPhone, nombre || 'Cliente Directo', false, fullPhone);
+    if (!client || !client.id) {
+      return res.status(500).json({ error: 'No se pudo registrar o verificar la clienta.' });
+    }
+
+    // Generar token seguro de acceso para la PWA de reservas
+    const token = createBookingToken(client.id);
+
+    return res.json({
+      ok: true,
+      id: client.id,
+      token: token,
+      cliente: {
+        id: client.id,
+        nombre: client.nombre || nombre || 'Cliente Directo',
+        telefono: fullPhone,
+        numero: fullPhone,
+        lid: client.lid || null,
+      },
+    });
+  } catch (err) {
+    console.error('[API VERIFY CLIENT] Error:', err.message);
+    return res.status(500).json({ error: 'Error al verificar la clienta.', details: err.message });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

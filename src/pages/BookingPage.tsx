@@ -236,8 +236,19 @@ export default function BookingPage() {
         {paso === 'info_empresa' && <PasoInformacionEmpresa empresa={empresa} onVolver={() => setPaso('menu')} />}
         {paso === 'en_construccion' && <EnDesarrollo onVolver={() => setPaso('menu')} />}
 
-        <footer className="text-center mt-10 pt-6 border-t border-white/5">
+        <footer className="text-center mt-10 pt-6 border-t border-white/5 space-y-1.5">
           <p className="text-[10px] text-slate-400 font-medium">© {new Date().getFullYear()} {empresa?.nombre || 'Tu negocio'}</p>
+          <p className="text-[10px] text-slate-400">
+            Creado con <span className="text-rose-400">❤️</span> por{' '}
+            <a
+              href="https://nexodevstudio.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-slate-200 underline decoration-slate-500/50 underline-offset-2 transition-colors hover:text-white"
+            >
+              NexoDevStudio
+            </a>
+          </p>
         </footer>
       </div>
     </main>

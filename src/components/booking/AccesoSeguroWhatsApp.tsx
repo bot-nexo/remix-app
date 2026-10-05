@@ -101,6 +101,18 @@ export default function AccesoSeguroWhatsApp({
             <Lock size={12} />
             <span>Sin contraseñas · Seguro y en tiempo real</span>
           </div>
+
+          <p className="mt-6 text-[10px] text-slate-400">
+            Creado con <span className="text-rose-400">❤️</span> por{' '}
+            <a
+              href="https://nexodevstudio.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-slate-200 underline decoration-slate-500/50 underline-offset-2 hover:text-white"
+            >
+              NexoDevStudio
+            </a>
+          </p>
         </div>
       </div>
     </main>

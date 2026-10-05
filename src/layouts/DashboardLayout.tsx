@@ -2,12 +2,12 @@ import {
     Building2,
     CalendarClock,
     CalendarHeart,
+    ChevronLeft,
+    ChevronRight,
     LayoutDashboard,
     LogOut,
     Menu,
     Moon,
-    PanelLeftClose,
-    PanelLeftOpen,
     Settings,
     Sun,
     Tags,
@@ -77,25 +77,27 @@ export default function DashboardLayout() {
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         md:relative md:translate-x-0 md:z-auto ${desktopNavCollapsed ? 'md:w-20' : 'md:w-72'}
       `}>
+        {/* Floating Collapse Toggle Button */}
+        <button
+          type="button"
+          aria-label={desktopNavCollapsed ? 'Expandir navegación' : 'Colapsar navegación'}
+          aria-expanded={!desktopNavCollapsed}
+          title={desktopNavCollapsed ? 'Expandir navegación' : 'Colapsar navegación'}
+          onClick={() => setDesktopNavCollapsed((current) => !current)}
+          className="hidden md:flex absolute -right-3.5 top-6 z-30 h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-md transition-all hover:scale-110 hover:border-brand-primary hover:text-brand-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-500"
+        >
+          {desktopNavCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+        </button>
+
         {/* Profile Header */}
-        <div className={`relative border-b border-slate-100 dark:border-slate-800/60 hidden md:flex ${desktopNavCollapsed ? 'items-center px-3 py-5' : 'flex-col items-center px-5 pb-6 pt-7'}`}>
-          <button
-            type="button"
-            aria-label={desktopNavCollapsed ? 'Expandir navegación' : 'Colapsar navegación'}
-            aria-expanded={!desktopNavCollapsed}
-            title={desktopNavCollapsed ? 'Expandir navegación' : 'Colapsar navegación'}
-            onClick={() => setDesktopNavCollapsed((current) => !current)}
-            className={`absolute top-3 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 ${desktopNavCollapsed ? 'right-2' : 'right-3'}`}
-          >
-            {desktopNavCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-          </button>
-          <div className="relative mb-4">
+        <div className={`border-b border-slate-100 dark:border-slate-800/60 hidden md:flex ${desktopNavCollapsed ? 'flex-col items-center px-2 py-5' : 'flex-col items-center px-5 pb-6 pt-7'}`}>
+          <div className="relative mb-3">
             {logoUrl ? (
-              <img src={logoUrl} alt="Logo" className="w-16 h-16 rounded-2xl object-cover shadow-lg ring-2 ring-white dark:ring-slate-800" />
+              <img src={logoUrl} alt="Logo" className={`${desktopNavCollapsed ? 'w-10 h-10 rounded-xl' : 'w-16 h-16 rounded-2xl'} object-cover shadow-lg ring-2 ring-white dark:ring-slate-800 transition-all duration-200`} />
             ) : (
-              <img src="/logo.svg" alt="Angel Nails" className="w-16 h-16 rounded-2xl object-cover shadow-lg ring-2 ring-white dark:ring-slate-800" />
+              <img src="/logo.svg" alt="Angel Nails" className={`${desktopNavCollapsed ? 'w-10 h-10 rounded-xl' : 'w-16 h-16 rounded-2xl'} object-cover shadow-lg ring-2 ring-white dark:ring-slate-800 transition-all duration-200`} />
             )}
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-white dark:border-[#0f172a]"></div>
+            <div className={`absolute -bottom-0.5 -right-0.5 ${desktopNavCollapsed ? 'w-3 h-3' : 'w-4 h-4'} bg-emerald-400 rounded-full border-2 border-white dark:border-[#0f172a] transition-all`}></div>
           </div>
           {!desktopNavCollapsed && <>
             <h2 className="text-base font-bold text-slate-900 dark:text-white text-center truncate w-full">{companyName}</h2>

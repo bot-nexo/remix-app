@@ -19,22 +19,22 @@ export default function PasoHora({ fechaSeleccionada, horasDisponibles, horaSele
       <BackButton text="Volver a Fecha" onClick={onVolver} />
       <div className="rounded-2xl border border-white/5 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
         <h2 className="text-lg font-bold text-white">Selecciona la hora</h2>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-slate-300">
           <span className="font-medium" style={{ color: colorPrimario }}>{servicioNombre}</span> · {fechaSeleccionada}
         </p>
 
         {cargandoHoras && (
           <div className="mt-8 text-center">
             <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-3" style={{ borderColor: `${colorPrimario}40`, borderTopColor: 'transparent' }}></div>
-            <p className="text-sm text-slate-500">Consultando disponibilidad...</p>
+            <p className="text-sm text-slate-300">Consultando disponibilidad...</p>
           </div>
         )}
 
         {!cargandoHoras && horasDisponibles.length === 0 && (
           <div className="mt-8 text-center py-6">
-            <Clock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-            <p className="text-sm text-slate-400">No hay horarios disponibles para esta fecha.</p>
-            <p className="text-[11px] text-slate-600 mt-1">Intenta con otra fecha.</p>
+            <Clock className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+            <p className="text-sm text-slate-300">No hay horarios disponibles para esta fecha.</p>
+            <p className="text-[11px] text-slate-400 mt-1">Intenta con otra fecha.</p>
           </div>
         )}
 

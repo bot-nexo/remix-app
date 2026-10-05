@@ -22,16 +22,16 @@ export default function MenuAgenda({ onSeleccionarOpcion, empresa }: Props) {
                     <div className="flex min-w-0 items-center gap-3">
                         <img src={empresa?.logo_url || '/logo.svg'} alt="" className="h-12 w-12 shrink-0 rounded-2xl bg-black/20 object-contain p-1" />
                         <div className="min-w-0">
-                            <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">{empresa?.nombre || 'Angel Nails'}</p>
+                            <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">{empresa?.nombre || 'Angel Nails'}</p>
                             <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Tu momento empieza aquí.</h2>
                         </div>
                     </div>
                     <Sparkles size={18} className="mt-1 shrink-0" style={{ color: colorPrimario }} />
                 </div>
-                <p className="relative mt-4 max-w-[18rem] text-xs leading-relaxed text-slate-400">Hola, soy <span className="font-semibold text-white">{empresa?.nom_bot || 'Mia'}</span>. Te acompaño a encontrar el servicio y el horario ideal para ti.</p>
-                <div className="relative mt-4 flex items-center gap-3 text-[10px] text-slate-400">
+                <p className="relative mt-4 max-w-[18rem] text-xs leading-relaxed text-slate-200">Hola, soy <span className="font-semibold text-white">{empresa?.nom_bot || 'Mia'}</span>. Te acompaño a encontrar el servicio y el horario ideal para ti.</p>
+                <div className="relative mt-4 flex items-center gap-3 text-[10px] text-slate-200 font-medium">
                     <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Atención personalizada</span>
-                    <span className="h-1 w-1 rounded-full bg-slate-600" />
+                    <span className="h-1 w-1 rounded-full bg-slate-400" />
                     <span>Sin registro</span>
                 </div>
             </div>
@@ -48,7 +48,7 @@ export default function MenuAgenda({ onSeleccionarOpcion, empresa }: Props) {
                     </span>
                     <span className="min-w-0 flex-1">
                         <span className="block text-base font-semibold text-white">Agendar una cita</span>
-                        <span className="mt-1 block text-xs text-white/80">Elige servicio, día y hora</span>
+                        <span className="mt-1 block text-xs text-white/95 font-medium">Elige servicio, día y hora</span>
                     </span>
                     <ArrowRight size={19} className="shrink-0 text-white transition-transform group-hover:translate-x-1" />
                 </button>
@@ -56,8 +56,8 @@ export default function MenuAgenda({ onSeleccionarOpcion, empresa }: Props) {
 
             <div>
                 <div className="mb-2 flex items-center justify-between px-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">También puedes</p>
-                    <span className="text-[10px] text-slate-600">Explora a tu ritmo</span>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">También puedes</p>
+                    <span className="text-[10px] font-medium text-slate-300">Explora a tu ritmo</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
                 {opcionesSecundarias.map((opt, index) => {
@@ -69,7 +69,7 @@ export default function MenuAgenda({ onSeleccionarOpcion, empresa }: Props) {
                             <Icon size={18} strokeWidth={1.8} />
                         </span>
                         <span className="text-xs font-semibold leading-snug text-white">{opt.titulo}</span>
-                        <span className="mt-1 text-[10px] leading-snug text-slate-400">{opt.desc}</span>
+                        <span className="mt-1 text-[10px] leading-snug text-slate-300 font-medium">{opt.desc}</span>
                     </button>
                     );
                 })}

@@ -59,9 +59,9 @@ export default function PasoModificarCita({ onVolver, idCliente, bookingToken, o
             <div className="flex items-center justify-between px-1">
                 <div>
                     <h2 className="text-xl font-bold text-slate-100">Reagendar Cita</h2>
-                    <p className="text-xs text-slate-400">Selecciona la cita que deseas cambiar</p>
+                    <p className="text-xs text-slate-300">Selecciona la cita que deseas cambiar</p>
                 </div>
-                <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium border border-slate-700/60">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 text-xs font-medium border border-slate-700/60">
                     {citas.length} {citas.length === 1 ? "disponible" : "disponibles"}
                 </span>
             </div>

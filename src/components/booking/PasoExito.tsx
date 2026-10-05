@@ -16,7 +16,7 @@ export default function PasoExito({ servicio, fecha, hora, cliente, onNuevaReser
         <CheckCircle className="w-8 h-8" style={{ color: colorPrimario }} />
       </div>
       <h2 className="text-xl font-bold text-white">¡Cita Reservada!</h2>
-      <p className="mt-2 text-sm text-slate-400">Te esperamos el <span className="font-semibold" style={{ color: colorPrimario }}>{fecha}</span> a las <span className="font-semibold" style={{ color: colorPrimario }}>{hora}</span></p>
+      <p className="mt-2 text-sm text-slate-200">Te esperamos el <span className="font-semibold" style={{ color: colorPrimario }}>{fecha}</span> a las <span className="font-semibold" style={{ color: colorPrimario }}>{hora}</span></p>
 
       <div className="mt-5 rounded-xl border border-white/5 p-4 text-left space-y-2.5" style={{ background: 'rgba(255,255,255,0.02)' }}>
         <div className="flex items-center gap-2.5">

@@ -34,7 +34,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
             <h2 className="text-xl font-bold text-slate-100">
               {empresa?.nombre || 'Angel Nails'}
             </h2>
-            <p className="text-xs text-slate-400">Información General</p>
+            <p className="text-xs text-slate-300 font-medium">Información General</p>
           </div>
         </div>
 
@@ -44,7 +44,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
             <span className="text-xl">📍</span>
             <div>
               <p className="font-semibold text-[var(--brand-primary)]">Ubicación</p>
-              <p className="text-slate-400">{empresa?.direccion || 'No especificada'}</p>
+              <p className="text-slate-300">{empresa?.direccion || 'No especificada'}</p>
             </div>
           </div>
 
@@ -53,7 +53,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
             <span className="text-xl">⏰</span>
             <div>
               <p className="font-semibold text-[var(--brand-primary)]">Horario de Atención</p>
-              <p className="text-slate-400 whitespace-pre-line">
+              <p className="text-slate-300 whitespace-pre-line">
                 {empresa?.horario || 'Lunes a Sábado: 8:00 AM - 7:00 PM'}
               </p>
             </div>
@@ -64,7 +64,7 @@ export default function PasoInformacionEmpresa({ empresa, onVolver }: Props) {
             <span className="text-xl">📋</span>
             <div>
               <p className="font-semibold text-[var(--brand-primary)]">Políticas del Servicio</p>
-              <p className="text-slate-400 whitespace-pre-line leading-relaxed">
+              <p className="text-slate-300 whitespace-pre-line leading-relaxed">
                 {empresa?.politicas || 'Tolerancia máxima de 15 minutos de retraso. Cancelaciones con al menos 2 horas de anticipación.'}
               </p>
             </div>

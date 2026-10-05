@@ -62,13 +62,13 @@ export default function PasoServiciosPrecios({ onVolver }: Props) {
                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em]">Angel Nails · La colección</p>
               </div>
               <h2 className="mt-4 text-[2rem] font-semibold leading-[1.05] tracking-[-0.03em] text-[#fff5f7]">Un acabado que se nota.</h2>
-              <p className="mt-3 text-xs leading-relaxed text-[#d8c4c9]">Descubre nuestros rituales de cuidado, color y diseño. Tu próximo look empieza con una elección.</p>
+              <p className="mt-3 text-xs leading-relaxed text-slate-200">Descubre nuestros rituales de cuidado, color y diseño. Tu próximo look empieza con una elección.</p>
             </div>
             <div className="relative mt-1 flex h-14 w-10 shrink-0 items-end justify-center rounded-b-[1.5rem] rounded-t-[1.5rem] border border-[var(--brand-blush)]/40 bg-gradient-to-b from-[var(--brand-blush)] via-[var(--brand-primary)] to-[var(--brand-secondary)] shadow-[0_8px_20px_rgba(198,109,141,0.3)]">
               <span className="mb-2 h-1.5 w-1.5 rounded-full bg-white/80" />
             </div>
           </div>
-          <div className="relative mt-6 flex items-center justify-between border-t border-white/10 pt-3 text-[10px] text-[#cdb9be]">
+          <div className="relative mt-6 flex items-center justify-between border-t border-white/10 pt-3 text-[10px] text-slate-200">
             <span className="flex items-center gap-1.5"><Sparkles size={12} className="text-[var(--brand-gold)]" /> Diseñado para ti</span>
             <span>{servicios.length || '—'} servicios activos</span>
           </div>
@@ -77,7 +77,7 @@ export default function PasoServiciosPrecios({ onVolver }: Props) {
         {loading ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] py-12 text-center">
             <RefreshCw className="mx-auto mb-3 animate-spin text-[var(--brand-primary)]" size={22} />
-            <p className="text-sm text-slate-400">Preparando la colección...</p>
+            <p className="text-sm text-slate-300">Preparando la colección...</p>
           </div>
         ) : error ? (
           <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-5 py-10 text-center">
@@ -87,7 +87,7 @@ export default function PasoServiciosPrecios({ onVolver }: Props) {
             </button>
           </div>
         ) : servicios.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-sm text-slate-400">No hay servicios disponibles en este momento.</p>
+          <p className="rounded-2xl border border-dashed border-white/10 py-10 text-center text-sm text-slate-300">No hay servicios disponibles en este momento.</p>
         ) : (
           <div className="space-y-3">
             {servicios.map((servicio, index) => (
@@ -98,18 +98,18 @@ export default function PasoServiciosPrecios({ onVolver }: Props) {
                 <div className="absolute right-0 top-0 h-full w-1 bg-gradient-to-b from-[var(--brand-blush)] via-[var(--brand-primary)] to-[var(--brand-gold)] opacity-70" />
                 <div className="flex min-w-0 items-start gap-3 pr-2">
                   <div className="flex shrink-0 flex-col items-center gap-2">
-                    <span className="text-[10px] font-semibold tracking-[0.16em] text-[#b999a4]">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="text-[10px] font-semibold tracking-[0.16em] text-[var(--brand-blush)]">{String(index + 1).padStart(2, '0')}</span>
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--brand-blush)]/20 bg-[var(--brand-blush)]/10 text-[var(--brand-blush)]"><Scissors size={15} /></span>
                   </div>
                   <div className="min-w-0 pt-0.5">
                     <h3 className="break-words font-semibold leading-snug text-[#fff5f7]">{servicio.nombre}</h3>
-                    <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-300/75"><Clock3 size={13} className="text-[var(--brand-gold)]" /> {servicio.duracion_minutos} minutos</p>
+                    <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-200"><Clock3 size={13} className="text-[var(--brand-gold)]" /> {servicio.duracion_minutos} minutos</p>
                   </div>
                 </div>
 
                 <div className="shrink-0 self-center pr-2 text-right">
                   <span className="block text-base font-bold text-[var(--brand-blush)]">{formatearPrecio(Number(servicio.valor))}</span>
-                  <span className="mt-1 block text-[9px] uppercase tracking-[0.14em] text-slate-400">por servicio</span>
+                  <span className="mt-1 block text-[9px] uppercase tracking-[0.14em] text-slate-300">por servicio</span>
                 </div>
               </div>
             ))}

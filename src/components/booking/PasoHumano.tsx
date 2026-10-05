@@ -28,7 +28,7 @@ export default function PasoHumano({ onVolver, empresaNombre, telefonoProfesiona
                 <h2 className="text-xl font-semibold text-slate-100">
                     ¿Necesitas ayuda personalizada?
                 </h2>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-slate-300">
                     Nuestro equipo está listo para atenderte por WhatsApp.
                 </p>
                 <button

@@ -35,12 +35,12 @@ export default function PasoServicio({ servicioSeleccionado, onSeleccionar, onCo
         <section>
             <BackButton text="Volver al Menú" onClick={onVolver} />
             <h2 className="mb-1 text-lg font-bold text-white">¿Qué servicio deseas?</h2>
-            <p className="text-xs text-slate-500 mb-5">Elige el tratamiento que prefieras</p>
+            <p className="text-xs text-slate-300 mb-5">Elige el tratamiento que prefieras</p>
 
             {loading && (
                 <div className="rounded-2xl border border-white/5 p-8 text-center" style={{ background: 'rgba(255,255,255,0.02)' }}>
                     <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-3" style={{ borderColor: `${colorPrimario}40`, borderTopColor: 'transparent' }}></div>
-                    <p className="text-sm text-slate-500">Cargando servicios...</p>
+                    <p className="text-sm text-slate-300">Cargando servicios...</p>
                 </div>
             )}
 
@@ -65,7 +65,7 @@ export default function PasoServicio({ servicioSeleccionado, onSeleccionar, onCo
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="flex-1 min-w-0">
                                         <h3 className="text-sm font-semibold text-white">{servicio.nombre}</h3>
-                                        <p className="text-[11px] text-slate-500 mt-0.5">{servicio.duracion_minutos} minutos</p>
+                                        <p className="text-[11px] text-slate-300 mt-0.5">{servicio.duracion_minutos} minutos</p>
                                     </div>
                                     <span className="text-sm font-bold shrink-0" style={{ color: colorPrimario }}>
                                         {formatearPrecio(Number(servicio.valor))}
@@ -84,11 +84,11 @@ export default function PasoServicio({ servicioSeleccionado, onSeleccionar, onCo
 
             {servicioSeleccionado && (
                 <div className="mt-5 rounded-2xl border p-4" style={{ borderColor: `${colorPrimario}40`, background: `${colorPrimario}08` }}>
-                    <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 mb-2">Seleccionado</p>
+                    <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-300 mb-2">Seleccionado</p>
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <p className="text-sm font-semibold text-white">{servicioSeleccionado.nombre}</p>
-                            <p className="text-[11px] text-slate-400">{servicioSeleccionado.duracion_minutos} min</p>
+                            <p className="text-[11px] text-slate-300">{servicioSeleccionado.duracion_minutos} min</p>
                         </div>
                         <span className="text-sm font-bold" style={{ color: colorPrimario }}>{formatearPrecio(Number(servicioSeleccionado.valor))}</span>
                     </div>

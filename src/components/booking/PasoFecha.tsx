@@ -18,11 +18,11 @@ export default function PasoFecha({ servicioNombre, duracionMinutos, fechaSelecc
       <BackButton text={textoVolver} onClick={onVolver} />
       <div className="rounded-2xl border border-white/5 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
         <h2 className="text-lg font-bold text-white">Selecciona la fecha</h2>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-slate-300">
           <span className="font-medium" style={{ color: colorPrimario }}>{servicioNombre}</span> · {duracionMinutos} min
         </p>
         <div className="mt-5">
-          <label htmlFor="fecha" className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Fecha de la cita</label>
+          <label htmlFor="fecha" className="block text-[10px] font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Fecha de la cita</label>
           <input id="fecha" type="date" min={hoyStr} value={fechaSeleccionada} onChange={(e) => onFechaChange(e.target.value)}
             className="w-full rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm text-white focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/10 [color-scheme:dark]" />
         </div>

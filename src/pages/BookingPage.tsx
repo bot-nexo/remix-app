@@ -171,7 +171,7 @@ export default function BookingPage() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${colorPrimario}08, #0a0a0a)` }}>
         <div className="text-center">
           <div className="w-12 h-12 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-3" style={{ borderColor: `${colorPrimario}40`, borderTopColor: 'transparent' }}></div>
-          <p className="text-sm text-slate-500">Cargando...</p>
+          <p className="text-sm text-slate-300">Cargando...</p>
         </div>
       </div>
     );
@@ -216,7 +216,7 @@ export default function BookingPage() {
             </div>
           )}
           <h1 className="text-2xl font-bold tracking-tight text-white">{empresa?.nombre || 'Angel Nails'}</h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-300 font-medium mt-1">
             Reserva tu cita en línea
           </p>
         </header>
@@ -237,7 +237,7 @@ export default function BookingPage() {
         {paso === 'en_construccion' && <EnDesarrollo onVolver={() => setPaso('menu')} />}
 
         <footer className="text-center mt-10 pt-6 border-t border-white/5">
-          <p className="text-[10px] text-slate-600">© {new Date().getFullYear()} {empresa?.nombre || 'Tu negocio'}</p>
+          <p className="text-[10px] text-slate-400 font-medium">© {new Date().getFullYear()} {empresa?.nombre || 'Tu negocio'}</p>
         </footer>
       </div>
     </main>

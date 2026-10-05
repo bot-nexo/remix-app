@@ -99,9 +99,9 @@ export default function PasoConsultarCita({ onVolver, idCliente, bookingToken }:
             <div className="flex items-center justify-between px-1">
                 <div>
                     <h2 className="text-xl font-bold text-slate-100">Historial de Citas</h2>
-                    <p className="text-xs text-slate-400">Historial de citas agendadas</p>
+                    <p className="text-xs text-slate-300">Historial de citas agendadas</p>
                 </div>
-                <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 text-xs font-medium border border-slate-700/60">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 text-xs font-medium border border-slate-700/60">
                     {citas.length} {citas.length === 1 ? "cita" : "citas"}
                 </span>
             </div>
@@ -113,7 +113,7 @@ export default function PasoConsultarCita({ onVolver, idCliente, bookingToken }:
             )}
             {citas.length === 0 && !loading && (
                 <div className="mt-10 text-center py-3 bg-slate-800/60 rounded-xl border border-slate-700/60">
-                    <CalendarOff className="w-16 h-16 mx-auto mb-2 text-slate-400" />
+                    <CalendarOff className="w-16 h-16 mx-auto mb-2 text-slate-300" />
                     <p className=" text-[var(--brand-primary)] text-lg  font-medium">No has tenido citas.</p>
                 </div>
             )}
@@ -135,7 +135,7 @@ export default function PasoConsultarCita({ onVolver, idCliente, bookingToken }:
                                     <h3 className="font-semibold text-slate-100 text-sm leading-tight">
                                         {cita.servicios?.nombre || 'Servicio'}
                                     </h3>
-                                    <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5">
+                                    <div className="flex items-center gap-1 text-[11px] text-slate-300 mt-0.5">
                                         <Clock className="w-3 h-3 text-[var(--brand-primary)]" />
                                         <span>{cita.duracion_servicio} min.</span>
                                     </div>

@@ -540,6 +540,105 @@ async function getBotConfigFromDB() {
 }
 
 /**
+ * Plantillas por defecto para fallback del backend
+ */
+const PLANTILLAS_DEFECTO_BACKEND = {
+  confirmacion: {
+    titulo: '✨ CITA CONFIRMADA EXITOSAMENTE',
+    cuerpo: 'Hola {nombre_cliente}, ¡tu reserva ha sido agendada con éxito en {nombre_empresa}!\n\n💅 *Servicio:* {servicio}\n📅 *Fecha:* {fecha_cita}\n⏰ *Hora:* {hora_cita}\n📍 *Ubicación:* {direccion_empresa}\n\nEstamos muy entusiasmados por atenderte.',
+    accion: 'Si necesitas modificar o reprogramar tu cita, responde a este mensaje o ingresa a {link_reserva}.',
+    activa: true,
+  },
+  recordatorio: {
+    titulo: '⏰ RECORDATORIO DE TU PRÓXIMA CITA',
+    cuerpo: 'Hola {nombre_cliente}, queremos recordarte que tienes una cita programada para mañana en {nombre_empresa}.\n\n✨ *Servicio:* {servicio}\n📅 *Fecha:* {fecha_cita}\n⏰ *Hora:* {hora_cita}',
+    accion: 'Por favor responde *1* para CONFIRMAR tu asistencia o *2* si deseas REPROGRAMAR.',
+    activa: true,
+  },
+  cancelacion: {
+    titulo: '❌ CITA CANCELADA',
+    cuerpo: 'Hola {nombre_cliente}, confirmamos que tu cita para el servicio de {servicio} programada el {fecha_cita} a las {hora_cita} ha sido cancelada.',
+    accion: 'Si deseas agendar un nuevo espacio, puedes volver a reservar aquí: {link_reserva}',
+    activa: true,
+  },
+  seguimiento: {
+    titulo: '💜 ¡GRACIAS POR TU VISITA!',
+    cuerpo: 'Hola {nombre_cliente}, esperamos que hayas quedado feliz con tu servicio de {servicio} en {nombre_empresa}.\n\nPara nosotros tu opinión es extremadamente valiosa.',
+    accion: 'Cuéntanos del 1 al 5 qué tal te pareció la atención hoy. ¡Que tengas un día radiante! 🌟',
+    activa: true,
+  },
+  promocion: {
+    titulo: '🎉 ¡TENEMOS UNA SORPRESA PARA TI!',
+    cuerpo: 'Hola {nombre_cliente}, queremos invitarte a conocer nuestras nuevas tendencias y promociones exclusivas del mes en {nombre_empresa}.',
+    accion: '¡Agenda hoy mismo tu cita con descuento aquí! 👉 {link_reserva}',
+    activa: true,
+  }
+};
+
+/**
+ * Obtiene las plantillas personalizadas de WhatsApp desde Supabase
+ */
+async function getPlantillasFromDB(userId = WHATSAPP_ADMIN_USER_ID) {
+  try {
+    const { data, error } = await supabase
+      .from('configuracion')
+      .select('valor')
+      .eq('user_id', userId || WHATSAPP_ADMIN_USER_ID)
+      .eq('clave', 'wa_plantillas_mensajes_v1')
+      .maybeSingle();
+
+    if (error || !data || !data.valor) {
+      return PLANTILLAS_DEFECTO_BACKEND;
+    }
+
+    const parsed = JSON.parse(data.valor);
+    return {
+      ...PLANTILLAS_DEFECTO_BACKEND,
+      ...parsed,
+    };
+  } catch (err) {
+    console.error('[BD] Error al leer plantillas de WhatsApp:', err.message);
+    return PLANTILLAS_DEFECTO_BACKEND;
+  }
+}
+
+/**
+ * Formatea una plantilla reemplazando variables dinámicas en Título, Cuerpo y Acción.
+ */
+function formatPlantillaMensaje(plantilla, datos = {}) {
+  if (!plantilla) return '';
+
+  const sustitutos = {
+    '{nombre_cliente}': datos.nombre_cliente || datos.cliente_nombre || 'Cliente',
+    '{servicio}': datos.servicio || datos.servicio_nombre || 'Servicio',
+    '{fecha_cita}': datos.fecha_cita || datos.fecha || '',
+    '{hora_cita}': datos.hora_cita || datos.hora || '',
+    '{nombre_empresa}': datos.nombre_empresa || datos.empresa || empresaData?.nombre || 'Angel Nails Studio',
+    '{direccion_empresa}': datos.direccion_empresa || datos.direccion || empresaData?.direccion || '',
+    '{link_reserva}': datos.link_reserva || 'https://angelnails.tech/reservar',
+  };
+
+  const reemplazar = (texto) => {
+    let res = texto || '';
+    Object.entries(sustitutos).forEach(([k, v]) => {
+      res = res.split(k).join(v);
+    });
+    return res;
+  };
+
+  const tituloProc = reemplazar(plantilla.titulo).trim();
+  const cuerpoProc = reemplazar(plantilla.cuerpo).trim();
+  const accionProc = reemplazar(plantilla.accion).trim();
+
+  let mensajeFinal = '';
+  if (tituloProc) mensajeFinal += `*${tituloProc}*\n\n`;
+  if (cuerpoProc) mensajeFinal += `${cuerpoProc}\n`;
+  if (accionProc) mensajeFinal += `\n─────────────────────\n*👉 Acción / Respuesta:* ${accionProc}`;
+
+  return mensajeFinal.trim();
+}
+
+/**
  * Obtiene o crea el estado de conversación para un cliente.
  * @param {string} clientId - UUID del cliente.
  * @param {string} estado   - Estado inicial si no existe ('MENU_PRINCIPAL').
@@ -1539,6 +1638,39 @@ app.use((error, _req, res, _next) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Ruta API: POST /api/templates/send
+// Permite enviar mensajes basados en las plantillas personalizadas de Supabase
+// ─────────────────────────────────────────────────────────────────────────────
+app.post('/api/templates/send', async (req, res) => {
+  const { to, templateType, data: customData, userId } = req.body || {};
+
+  if (!to || !templateType) {
+    return res.status(400).json({ error: 'Faltan parámetros requeridos: "to" y "templateType".' });
+  }
+
+  try {
+    const plantillas = await getPlantillasFromDB(userId || WHATSAPP_ADMIN_USER_ID);
+    const plantillaTarget = plantillas[templateType];
+
+    if (!plantillaTarget) {
+      return res.status(404).json({ error: `La plantilla "${templateType}" no existe.` });
+    }
+
+    const cleanNum = to.replace(/\D/g, '');
+    const toRecipient = to.includes('@') ? to : `${cleanNum}@s.whatsapp.net`;
+    const messageText = formatPlantillaMensaje(plantillaTarget, customData || {});
+
+    await sendEvolutionMessage(toRecipient, messageText, true);
+    console.log(`[API TEMPLATES] Mensaje de plantilla "${templateType}" enviado a ${cleanNum}`);
+
+    return res.json({ ok: true, message: `Plantilla ${templateType} enviada exitosamente.` });
+  } catch (err) {
+    console.error(`[API TEMPLATES] Error enviando plantilla ${templateType}:`, err.message);
+    return res.status(500).json({ error: 'No se pudo enviar el mensaje por WhatsApp.', details: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Worker de Recordatorios Automáticos (24 Horas y 2 Horas Antes)
 // ─────────────────────────────────────────────────────────────────────────────
 async function processAppointmentReminders() {
@@ -1549,6 +1681,9 @@ async function processAppointmentReminders() {
   try {
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
+
+    // Cargar plantillas desde Supabase (si existen)
+    const plantillas = await getPlantillasFromDB(WHATSAPP_ADMIN_USER_ID);
 
     const { data: citas, error } = await supabase
       .from('citas')
@@ -1600,16 +1735,31 @@ async function processAppointmentReminders() {
         ? cita.cliente_numero
         : `${cleanNum}@s.whatsapp.net`;
 
+      const datosPlantilla = {
+        nombre_cliente: cita.cliente_nombre || 'Cliente',
+        servicio: servicioNombre,
+        fecha_cita: cita.fecha_inicio,
+        hora_cita: horaClean,
+        nombre_empresa: empresaData?.nombre || 'Angel Nails Studio',
+        direccion_empresa: empresaData?.direccion || '',
+        link_reserva: bookingUrl,
+      };
+
       // 1. Recordatorio 24 horas antes (ventana entre 23h y 25h)
       if (!cita.recordatorio_24h_enviado && diffHours >= 23 && diffHours <= 25) {
-        const msg24h = `🌸 *Recordatorio de Cita - Angel Nails* 💅\n\n` +
-          `Hola *${cita.cliente_nombre || 'Cliente'}*, te recordamos tu cita para mañana para *${servicioNombre}*:\n\n` +
-          `📅 *Fecha:* ${cita.fecha_inicio}\n` +
-          `⏰ *Hora:* ${horaClean}\n\n` +
-          `⚠️ *¿Necesitas cambiar o cancelar tu cita?*\n` +
-          `Si no puedes asistir, por favor reagenda o cancela con anticipación para liberar tu lugar a otra clienta:\n` +
-          `👉 ${bookingUrl}\n\n` +
-          `¡Te esperamos! ✨`;
+        let msg24h = '';
+        if (plantillas?.recordatorio && plantillas.recordatorio.activa !== false) {
+          msg24h = formatPlantillaMensaje(plantillas.recordatorio, datosPlantilla);
+        } else {
+          msg24h = `🌸 *Recordatorio de Cita - Angel Nails* 💅\n\n` +
+            `Hola *${cita.cliente_nombre || 'Cliente'}*, te recordamos tu cita para mañana para *${servicioNombre}*:\n\n` +
+            `📅 *Fecha:* ${cita.fecha_inicio}\n` +
+            `⏰ *Hora:* ${horaClean}\n\n` +
+            `⚠️ *¿Necesitas cambiar o cancelar tu cita?*\n` +
+            `Si no puedes asistir, por favor reagenda o cancela con anticipación para liberar tu lugar a otra clienta:\n` +
+            `👉 ${bookingUrl}\n\n` +
+            `¡Te esperamos! ✨`;
+        }
 
         try {
           await sendEvolutionMessage(toRecipient, msg24h, true);
@@ -1622,13 +1772,18 @@ async function processAppointmentReminders() {
 
       // 2. Recordatorio 2 horas antes (ventana entre 1.5h y 2.5h)
       if (!cita.recordatorio_2h_enviado && diffHours >= 1.5 && diffHours <= 2.5) {
-        const msg2h = `⏳ *¡Tu cita es en 2 horas! - Angel Nails* 💅\n\n` +
-          `Hola *${cita.cliente_nombre || 'Cliente'}*, te recordamos tu cita de hoy:\n\n` +
-          `💅 *Servicio:* ${servicioNombre}\n` +
-          `⏰ *Hora:* ${horaClean}\n\n` +
-          `Si tuviste algún inconveniente de última hora, por favor reagenda o cancela aquí para liberar tu espacio:\n` +
-          `👉 ${bookingUrl}\n\n` +
-          `¡Nos vemos pronto! 💖`;
+        let msg2h = '';
+        if (plantillas?.recordatorio && plantillas.recordatorio.activa !== false) {
+          msg2h = formatPlantillaMensaje(plantillas.recordatorio, datosPlantilla);
+        } else {
+          msg2h = `⏳ *¡Tu cita es en 2 horas! - Angel Nails* 💅\n\n` +
+            `Hola *${cita.cliente_nombre || 'Cliente'}*, te recordamos tu cita de hoy:\n\n` +
+            `💅 *Servicio:* ${servicioNombre}\n` +
+            `⏰ *Hora:* ${horaClean}\n\n` +
+            `Si tuviste algún inconveniente de última hora, por favor reagenda o cancela aquí para liberar tu espacio:\n` +
+            `👉 ${bookingUrl}\n\n` +
+            `¡Nos vemos pronto! 💖`;
+        }
 
         try {
           await sendEvolutionMessage(toRecipient, msg2h, true);

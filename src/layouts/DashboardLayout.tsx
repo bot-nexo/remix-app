@@ -1,17 +1,19 @@
 import {
-    Building2,
-    CalendarClock,
-    CalendarHeart,
-    ChevronLeft,
-    ChevronRight,
-    LayoutDashboard,
-    LogOut,
-    Menu,
-    Moon,
-    Settings,
-    Sun,
-    Tags,
-    X
+  Building2,
+  CalendarClock,
+  CalendarHeart,
+  ChevronLeft,
+  ChevronRight,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  MessageSquareText,
+  Moon,
+  Settings,
+  Sun,
+  Tags,
+  Users,
+  X
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, Navigate, Outlet, useLocation } from 'react-router-dom';
@@ -40,10 +42,12 @@ export default function DashboardLayout() {
   const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Calendario', href: '/calendario', icon: CalendarHeart },
-    { name: 'Gestión de Citas', href: '/gestion-citas', icon: CalendarClock },
-    { name: 'Servicios', href: '/servicios', icon: Tags },
-    { name: 'Empresa', href: '/empresa', icon: Building2 },
+    { name: 'Clientes', href: '/clientes', icon: Users },
     { name: 'Configuración', href: '/config', icon: Settings },
+    { name: 'Empresa', href: '/empresa', icon: Building2 },
+    { name: 'Gestión de Citas', href: '/gestion-citas', icon: CalendarClock },
+    { name: 'Personaliz. Mensajes', href: '/mensajes-whatsapp', icon: MessageSquareText },
+    { name: 'Servicios', href: '/servicios', icon: Tags },
   ];
 
   const closeMobileMenu = () => setMobileMenuOpen(false);

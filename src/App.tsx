@@ -16,6 +16,8 @@ import Configuracion from './pages/Configuracion';
 import Calendario from './pages/Calendario';
 import GestionCitas from './pages/GestionCitas';
 import BookingPage from './pages/BookingPage';
+import Clientes from './pages/Clientes';
+import PlantillasWhatsapp from './pages/PlantillasWhatsapp';
 import { ToastProvider } from './contexts/ToastContext';
 
 export default function App() {
@@ -31,6 +33,8 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               {/* <Route path="/lista-blanca" element={<ListaBlanca />} />*/}
               <Route path="/gestion-citas" element={<GestionCitas />} />
+              <Route path="/clientes" element={<Clientes />} />
+              <Route path="/mensajes-whatsapp" element={<PlantillasWhatsapp />} />
               <Route path="/servicios" element={<Servicios />} />
               <Route path="/empresa" element={<Empresa />} />
               <Route path="/config" element={<Configuracion />} />

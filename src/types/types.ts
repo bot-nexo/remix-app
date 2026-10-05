@@ -66,3 +66,14 @@ export interface Contacto {
   nombre_contacto: string;
   numero_whatsapp: string;
 }
+
+export interface Cliente {
+  id: string;
+  nombre: string;
+  numero: string | null;
+  lid?: string | null;
+  created_at: string;
+  total_citas?: number;
+  ultima_cita?: string | null;
+}
+

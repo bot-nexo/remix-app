@@ -72,8 +72,30 @@ export default function GestionCitas() {
     };
 
     useEffect(() => {
+        if (!user) return;
         fetchCitas();
         cargarServicios();
+
+        // Realtime subscription para escuchar cambios en la tabla 'citas' en tiempo real
+        const channel = supabase
+            .channel('citas-realtime-admin')
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'citas',
+                    filter: `user_id=eq.${user.id}`,
+                },
+                () => {
+                    fetchCitas();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [user]);
 
     const cargarServicios = async () => {
@@ -310,11 +332,16 @@ export default function GestionCitas() {
                     clienteIdFinal = clienteObj.id;
                 }
             } catch (err) {
-                // Fallback de búsqueda si ocurrió algún inconveniente
+                console.warn('[GESTION CITAS] Error en crearCliente, ejecutando fallback:', err);
+            }
+
+            if (!clienteIdFinal && fullPhone) {
+                const last10 = cleanPhone.length >= 7 ? cleanPhone.slice(-10) : fullPhone;
                 const { data: existente } = await supabase
                     .from('clientes')
                     .select('id')
-                    .eq('numero', fullPhone)
+                    .or(`numero.eq.${fullPhone},numero.eq.+${fullPhone},numero.ilike.%${last10}`)
+                    .limit(1)
                     .maybeSingle();
                 if (existente?.id) {
                     clienteIdFinal = existente.id;

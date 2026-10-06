@@ -691,6 +691,38 @@ async function getPlantillasFromDB(userId = WHATSAPP_ADMIN_USER_ID) {
 }
 
 /**
+ * Verifica si un número o identificador está en la lista blanca (contactos excluidos)
+ * @param {string} cleanIdentifier
+ * @returns {Promise<boolean>}
+ */
+async function isNumberInWhiteList(cleanIdentifier) {
+  if (!cleanIdentifier) return false;
+  try {
+    const cleanPhone = cleanIdentifier.replace(/\D/g, '');
+    if (!cleanPhone) return false;
+
+    const { data, error } = await supabase
+      .from('lista_blanca')
+      .select('numero_whatsapp')
+      .eq('user_id', WHATSAPP_ADMIN_USER_ID);
+
+    if (error || !data || !Array.isArray(data)) return false;
+
+    const last10 = cleanPhone.slice(-10);
+
+    return data.some((row) => {
+      const dbPhone = (row.numero_whatsapp || '').replace(/\D/g, '');
+      if (!dbPhone) return false;
+      const dbLast10 = dbPhone.slice(-10);
+      return last10 === dbLast10 || cleanPhone.endsWith(dbPhone) || dbPhone.endsWith(cleanPhone);
+    });
+  } catch (err) {
+    console.error('[BD] Error al verificar lista blanca:', err.message);
+    return false;
+  }
+}
+
+/**
  * Formatea una plantilla reemplazando variables dinámicas en Título, Cuerpo y Acción.
  */
 function formatPlantillaMensaje(plantilla, datos = {}) {
@@ -740,6 +772,10 @@ function formatPlantillaMensaje(plantilla, datos = {}) {
     Object.entries(sustitutos).forEach(([k, v]) => {
       res = res.split(k).join(v);
     });
+    // Forzar el reemplazo de cualquier URL genérica /reservar sin parámetro ?id= por la URL firmada
+    if (bookingLink && bookingLink.includes('?id=')) {
+      res = res.replace(/https?:\/\/[^\s]*\/reservar(?!\?id=)/gi, bookingLink);
+    }
     return res;
   };
 
@@ -807,19 +843,49 @@ async function getOrCreateConversationState(clientId, estado = 'MENU_PRINCIPAL')
  * @returns {Promise<boolean>}
  */
 async function updateConversationState(clientId, nuevoEstado) {
+  if (!clientId) return false;
   try {
-    const { error } = await supabase
+    const { data: existente } = await supabase
       .from('conversacion_estado')
-      .upsert({
+      .select('id')
+      .eq('cliente_id', clientId)
+      .maybeSingle();
+
+    if (existente?.id) {
+      const { error: updateError } = await supabase
+        .from('conversacion_estado')
+        .update({
+          estado: nuevoEstado,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existente.id);
+
+      if (updateError) {
+        console.error('[BD] Error al actualizar conversacion_estado:', updateError.message);
+        return false;
+      }
+      return true;
+    }
+
+    // Si no existía, crear la fila
+    const { error: insertError } = await supabase
+      .from('conversacion_estado')
+      .insert({
         cliente_id: clientId,
         estado: nuevoEstado,
         updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'cliente_id',
       });
 
-    if (error) {
-      console.error('[BD] Error al actualizar conversacion_estado:', error.message);
+    if (insertError) {
+      if (insertError.code === '23505' || (insertError as any).status === 409) {
+        // Conflicto de unicidad: fallback a update por cliente_id
+        await supabase
+          .from('conversacion_estado')
+          .update({ estado: nuevoEstado, updated_at: new Date().toISOString() })
+          .eq('cliente_id', clientId);
+        return true;
+      }
+      console.error('[BD] Error al crear conversacion_estado:', insertError.message);
       return false;
     }
 
@@ -1412,6 +1478,7 @@ app.post('/api/booking/appointments', requireBookingAccess, asyncRoute(async (re
 
       if (plantillaTarget && fullPhone) {
         const messageText = formatPlantillaMensaje(plantillaTarget, {
+          cliente_id: effectiveClientId,
           nombre_cliente: name.trim(),
           telefono_cliente: fullPhone,
           servicio: servicioNombre,
@@ -1477,6 +1544,7 @@ app.post('/api/booking/appointments/:id/cancel', requireBookingAccess, asyncRout
         const plantillaTarget = plantillas.cancelacion;
         if (plantillaTarget) {
           const msg = formatPlantillaMensaje(plantillaTarget, {
+            cliente_id: cita.cliente_id,
             nombre_cliente: cita.cliente_nombre || 'Clienta',
             servicio: cita.servicios?.nombre || 'Servicio',
             fecha_cita: cita.fecha_inicio,
@@ -1538,6 +1606,7 @@ app.post('/api/booking/appointments/:id/reschedule', requireBookingAccess, async
           const plantillaTarget = plantillas.reagendamiento;
           if (plantillaTarget) {
             const msg = formatPlantillaMensaje(plantillaTarget, {
+              cliente_id: citaData.cliente_id,
               nombre_cliente: citaData.cliente_nombre || 'Clienta',
               servicio: citaData.servicios?.nombre || 'Servicio',
               fecha_cita: date,

@@ -77,20 +77,29 @@ export async function obtenerClientesPaginados({
 export async function crearCliente(cliente: { nombre: string; numero: string; lid?: string }): Promise<Cliente> {
   const cleanPhone = cliente.numero ? cliente.numero.replace(/\D/g, '') : '';
   const numToUse = cleanPhone || cliente.numero.trim();
+  const last10 = cleanPhone.length >= 7 ? cleanPhone.slice(-10) : numToUse;
 
-  // 1. Buscar si la clienta ya existe por número
+  // 1. Buscar si la clienta ya existe por número exacto o por coincidencia de los últimos dígitos
   if (numToUse) {
     const { data: existente } = await supabase
       .from('clientes')
       .select('*')
-      .eq('numero', numToUse)
+      .or(`numero.eq.${numToUse},numero.eq.+${numToUse},numero.ilike.%${last10}`)
+      .limit(1)
       .maybeSingle();
 
     if (existente) {
+      const updates: any = {};
       if (cliente.nombre.trim() && (existente.nombre === 'Cliente WhatsApp' || existente.nombre === 'Cliente Directo' || !existente.nombre)) {
+        updates.nombre = cliente.nombre.trim();
+      }
+      if (!existente.numero || existente.numero !== numToUse) {
+        updates.numero = numToUse;
+      }
+      if (Object.keys(updates).length > 0) {
         const { data: updated } = await supabase
           .from('clientes')
-          .update({ nombre: cliente.nombre.trim() })
+          .update(updates)
           .eq('id', existente.id)
           .select()
           .single();
@@ -114,12 +123,15 @@ export async function crearCliente(cliente: { nombre: string; numero: string; li
     .single();
 
   if (error) {
-    if (error.code === '23505') {
+    // Si la inserción falló con 23505 o HTTP 409 (duplicado), recuperarla de forma flexible
+    if (error.code === '23505' || (error as any).status === 409) {
       const { data: existente } = await supabase
         .from('clientes')
         .select('*')
-        .eq('numero', numToUse)
+        .or(`numero.eq.${numToUse},numero.eq.+${numToUse},numero.ilike.%${last10}`)
+        .limit(1)
         .maybeSingle();
+
       if (existente) return existente as Cliente;
     }
     console.error('Error al crear cliente:', error);

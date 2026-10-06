@@ -74,27 +74,62 @@ export async function obtenerClientesPaginados({
   };
 }
 
-export async function crearCliente(cliente: { nombre: string; numero: string; lid?: string }): Promise<Cliente> {
-  const cleanPhone = cliente.numero ? cliente.numero.replace(/\D/g, '') : '';
-  const numToUse = cleanPhone || cliente.numero.trim();
-  const last10 = cleanPhone.length >= 7 ? cleanPhone.slice(-10) : numToUse;
+/**
+ * Normaliza un número telefónico a formato colombiano estándar (573XXXXXXXXX)
+ */
+export function normalizarTelefono(telefono: string): string {
+  if (!telefono) return '';
+  const clean = telefono.replace(/\D/g, '');
+  if (clean.length === 10 && clean.startsWith('3')) {
+    return `57${clean}`;
+  }
+  return clean;
+}
 
-  // 1. Buscar si la clienta ya existe por número exacto o por coincidencia de los últimos dígitos
-  if (numToUse) {
+export async function crearCliente(cliente: { id?: string; nombre: string; numero?: string; lid?: string }): Promise<Cliente> {
+  const normPhone = cliente.numero ? normalizarTelefono(cliente.numero) : null;
+  const cleanLid = cliente.lid ? cliente.lid.replace(/\D/g, '') : null;
+  const nombreTrim = cliente.nombre ? cliente.nombre.trim() : 'Cliente';
+
+  // 1. Ejecutar RPC atómica de reconciliación en Supabase
+  try {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('reconciliar_o_crear_cliente', {
+      p_id: cliente.id || null,
+      p_nombre: nombreTrim,
+      p_telefono: normPhone,
+      p_lid: cleanLid,
+    });
+
+    if (!rpcError && rpcData) {
+      return rpcData as Cliente;
+    }
+    if (rpcError) {
+      console.warn('[CLIENTES SERVICE] RPC reconciliar_o_crear_cliente falló, ejecutando fallback:', rpcError.message);
+    }
+  } catch (err) {
+    console.warn('[CLIENTES SERVICE] Error llamando a RPC:', err);
+  }
+
+  // 2. Fallback de búsqueda/actualización directa si la RPC no estuviese disponible
+  if (normPhone) {
+    const last10 = normPhone.length >= 7 ? normPhone.slice(-10) : normPhone;
     const { data: existente } = await supabase
       .from('clientes')
       .select('*')
-      .or(`numero.eq.${numToUse},numero.eq.+${numToUse},numero.ilike.%${last10}`)
+      .or(`numero.eq.${normPhone},numero.ilike.%${last10}`)
       .limit(1)
       .maybeSingle();
 
     if (existente) {
       const updates: any = {};
-      if (cliente.nombre.trim() && (existente.nombre === 'Cliente WhatsApp' || existente.nombre === 'Cliente Directo' || !existente.nombre)) {
-        updates.nombre = cliente.nombre.trim();
+      if (nombreTrim && (existente.nombre === 'Cliente WhatsApp' || existente.nombre === 'Cliente Directo' || !existente.nombre)) {
+        updates.nombre = nombreTrim;
       }
-      if (!existente.numero || existente.numero !== numToUse) {
-        updates.numero = numToUse;
+      if (!existente.numero || existente.numero !== normPhone) {
+        updates.numero = normPhone;
+      }
+      if (cleanLid && !existente.lid) {
+        updates.lid = cleanLid;
       }
       if (Object.keys(updates).length > 0) {
         const { data: updated } = await supabase
@@ -109,51 +144,19 @@ export async function crearCliente(cliente: { nombre: string; numero: string; li
     }
   }
 
-  // 1.5. Si no se encontró por número, buscar si existe una clienta creada vía WhatsApp (con numero NULL) por coincidencia de nombre
-  if (numToUse && cliente.nombre.trim()) {
-    const { data: sinNumero } = await supabase
-      .from('clientes')
-      .select('*')
-      .is('numero', null)
-      .ilike('nombre', cliente.nombre.trim())
-      .limit(1)
-      .maybeSingle();
-
-    if (sinNumero) {
-      const { data: updated } = await supabase
-        .from('clientes')
-        .update({ numero: numToUse })
-        .eq('id', sinNumero.id)
-        .select()
-        .single();
-
-      return (updated as Cliente) || (sinNumero as Cliente);
-    }
-  }
   const { data, error } = await supabase
     .from('clientes')
     .insert([
       {
-        nombre: cliente.nombre.trim(),
-        numero: numToUse || null,
-        lid: cliente.lid || null,
+        nombre: nombreTrim,
+        numero: normPhone,
+        lid: cleanLid,
       },
     ])
     .select()
     .single();
 
   if (error) {
-    // Si la inserción falló con 23505 o HTTP 409 (duplicado), recuperarla de forma flexible
-    if (error.code === '23505' || (error as any).status === 409) {
-      const { data: existente } = await supabase
-        .from('clientes')
-        .select('*')
-        .or(`numero.eq.${numToUse},numero.eq.+${numToUse},numero.ilike.%${last10}`)
-        .limit(1)
-        .maybeSingle();
-
-      if (existente) return existente as Cliente;
-    }
     console.error('Error al crear cliente:', error);
     throw new Error(error.message || 'Error al guardar cliente.');
   }

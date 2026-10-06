@@ -239,14 +239,17 @@ function isPausarCommand(text) {
 }
 
 /**
- * Verifica si un número telefónico está en la lista blanca de la BD (contactos excluidos).
- * @param {string} cleanIdentifier
+ * Verifica si un número telefónico o LID está en la lista blanca de la BD (contactos excluidos).
+ * @param {string} cleanIdentifier - Identificador de chat (LID o Teléfono).
+ * @param {string} [associatedPhone] - Teléfono asociado al cliente si ya fue resuelto.
  * @returns {Promise<boolean>}
  */
-async function isNumberInWhiteList(cleanIdentifier) {
-  if (!cleanIdentifier) return false;
+async function isNumberInWhiteList(cleanIdentifier, associatedPhone = null) {
+  if (!cleanIdentifier && !associatedPhone) return false;
   try {
-    const cleanPhone = cleanIdentifier.replace(/\D/g, '');
+    const cleanId = (cleanIdentifier || '').replace(/\D/g, '');
+    const cleanAssoc = (associatedPhone || '').replace(/\D/g, '');
+
     const { data, error } = await supabase
       .from('lista_blanca')
       .select('numero_whatsapp');
@@ -255,7 +258,17 @@ async function isNumberInWhiteList(cleanIdentifier) {
 
     return data.some((row) => {
       const dbPhone = (row.numero_whatsapp || '').replace(/\D/g, '');
-      return dbPhone && (cleanPhone.endsWith(dbPhone) || dbPhone.endsWith(cleanPhone));
+      if (!dbPhone) return false;
+
+      // Coincidencia directa con el identificador del chat
+      if (cleanId && (cleanId.endsWith(dbPhone) || dbPhone.endsWith(cleanId))) {
+        return true;
+      }
+      // Coincidencia con el teléfono asociado del cliente
+      if (cleanAssoc && (cleanAssoc.endsWith(dbPhone) || dbPhone.endsWith(cleanAssoc))) {
+        return true;
+      }
+      return false;
     });
   } catch (err) {
     console.error('[BD] Error al verificar lista blanca:', err.message);
@@ -513,12 +526,12 @@ async function loadEmpresaData() {
 }
 
 /**
- * Busca un cliente por teléfono o LID. Si no existe, lo crea.
- * Corrige la diferenciación entre teléfono (<=12 dígitos) y LID privacy Meta (>=14 dígitos).
+ * Busca o reconcilia un cliente por teléfono, LID o ID explícito usando la RPC atómica.
  * @param {string} identifier - Número o LID limpio (solo dígitos).
  * @param {string} pushName   - Nombre del cliente desde Evolution (opcional).
  * @param {boolean} isLid      - Si el identificador es un LID.
  * @param {string} explicitPhone - Teléfono explícito enviado si se conoce.
+ * @param {string} explicitClientId - UUID del cliente si viene de token/URL.
  * @returns {Promise<{ id: string, nombre?: string, numero?: string, lid?: string } | null>}
  */
 async function findOrCreateClient(identifier, pushName = '', isLid = false, explicitPhone = null, explicitClientId = null) {
@@ -526,107 +539,49 @@ async function findOrCreateClient(identifier, pushName = '', isLid = false, expl
     const cleanId = (identifier || '').replace(/\D/g, '');
     const cleanPhone = (explicitPhone || '').replace(/\D/g, '');
 
-    // Un número telefónico colombiano/internacional tiene <= 12 dígitos (ej: 573245631084)
-    // Un LID de Meta privacy tiene >= 14 dígitos (ej: 268225153638543)
+    // Clasificación estricta:
+    // Teléfono: <= 12 dígitos (ej: 573245631084 o 3007256149)
+    // LID de Meta: >= 14 dígitos (ej: 268225153638543)
     let phoneToUse = cleanPhone || (!isLid && cleanId.length <= 12 ? cleanId : null);
-    let lidToUse = isLid || cleanId.length > 12 ? cleanId : null;
+    let lidToUse = isLid || cleanId.length >= 14 ? cleanId : null;
 
-    let cliente = null;
+    // Normalizar teléfono colombiano
+    if (phoneToUse && phoneToUse.length === 10 && phoneToUse.startsWith('3')) {
+      phoneToUse = `57${phoneToUse}`;
+    }
 
-    // 0. Si se proporciona explícitamente el ID del cliente (ej: desde el token de la reserva o URL)
+    const nombreFinal = pushName && pushName.trim() ? pushName.trim() : 'Cliente';
+
+    // 1. Invocar RPC atómica en Supabase
+    const { data: rpcClient, error: rpcError } = await supabase.rpc('reconciliar_o_crear_cliente', {
+      p_id: explicitClientId || null,
+      p_nombre: nombreFinal,
+      p_telefono: phoneToUse,
+      p_lid: lidToUse,
+    });
+
+    if (!rpcError && rpcClient) {
+      return rpcClient;
+    }
+
+    if (rpcError) {
+      console.warn('[BD] RPC reconciliar_o_crear_cliente aviso:', rpcError.message);
+    }
+
+    // 2. Fallback de consulta directa
+    let fallbackQuery = supabase.from('clientes').select('id, nombre, numero, lid');
     if (explicitClientId) {
-      const { data: idData } = await supabase
-        .from('clientes')
-        .select('id, numero, lid, nombre')
-        .eq('id', explicitClientId)
-        .maybeSingle();
-
-      if (idData) cliente = idData;
+      fallbackQuery = fallbackQuery.eq('id', explicitClientId);
+    } else if (phoneToUse) {
+      fallbackQuery = fallbackQuery.eq('numero', phoneToUse);
+    } else if (lidToUse) {
+      fallbackQuery = fallbackQuery.eq('lid', lidToUse);
     }
 
-    // 1. Buscar primero en BD por número
-    if (!cliente && phoneToUse) {
-      const { data: phoneData } = await supabase
-        .from('clientes')
-        .select('id, numero, lid, nombre')
-        .eq('numero', phoneToUse)
-        .maybeSingle();
+    const { data: fallbackData } = await fallbackQuery.maybeSingle();
+    if (fallbackData) return fallbackData;
 
-      if (phoneData) cliente = phoneData;
-    }
-
-    // 2. Buscar por LID si no se encontró por número
-    if (!cliente && lidToUse) {
-      const { data: lidData } = await supabase
-        .from('clientes')
-        .select('id, numero, lid, nombre')
-        .eq('lid', lidToUse)
-        .maybeSingle();
-
-      if (lidData) cliente = lidData;
-    }
-
-    // 3. Reconciliación: Si se busca por número y no se encuentra por número ni LID,
-    // buscar si existe un cliente creado vía WhatsApp (con numero NULL) cuyo nombre coincida
-    if (!cliente && phoneToUse && pushName && pushName.trim() && !['Cliente WhatsApp', 'Cliente Directo'].includes(pushName.trim())) {
-      const { data: nameData } = await supabase
-        .from('clientes')
-        .select('id, numero, lid, nombre')
-        .is('numero', null)
-        .ilike('nombre', pushName.trim())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (nameData) cliente = nameData;
-    }
-
-    // 4. Si el cliente ya existe pero le faltaba el número o el LID, actualizarlo para reconciliar (Merge)
-    if (cliente) {
-      const updates = {};
-      if (phoneToUse && !cliente.numero) updates.numero = phoneToUse;
-      if (lidToUse && !cliente.lid) updates.lid = lidToUse;
-      if (pushName && pushName.trim() && !['Cliente WhatsApp', 'Cliente Directo'].includes(pushName.trim())) {
-        if (!cliente.nombre || ['Cliente WhatsApp', 'Cliente Directo'].includes(cliente.nombre)) {
-          updates.nombre = pushName.trim();
-        }
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await supabase.from('clientes').update(updates).eq('id', cliente.id);
-      }
-
-      return { id: cliente.id, ...cliente, ...updates };
-    }
-
-    // 5. Si no existe en absoluto, crearlo en Supabase
-    const nombreFinal = pushName && pushName.trim() ? pushName.trim() : 'Cliente WhatsApp';
-    const { data: insertData, error: insertError } = await supabase
-      .from('clientes')
-      .insert({
-        nombre: nombreFinal,
-        numero: phoneToUse,
-        lid: lidToUse,
-      })
-      .select('id, nombre, numero, lid')
-      .single();
-
-    if (insertError) {
-      if (insertError.code === '23505' || insertError.status === 409) {
-        let fallbackQuery = supabase.from('clientes').select('id, nombre, numero, lid');
-        if (phoneToUse) {
-          fallbackQuery = fallbackQuery.eq('numero', phoneToUse);
-        } else if (lidToUse) {
-          fallbackQuery = fallbackQuery.eq('lid', lidToUse);
-        }
-        const { data: fallbackData } = await fallbackQuery.maybeSingle();
-        if (fallbackData) return fallbackData;
-      }
-      console.error('[BD] Error al crear cliente:', insertError.message);
-      return null;
-    }
-
-    return insertData;
+    return null;
   } catch (err) {
     console.error('[BD] Error inesperado en findOrCreateClient:', err.message);
     return null;
@@ -1816,20 +1771,13 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
     return;
   }
 
-  // ── 10b. Validar si el número está en la Lista Blanca (Contacto Excluido / Familiar) ──
-  const isWhitelisted = await isNumberInWhiteList(cleanIdentifier);
-  if (isWhitelisted) {
-    console.log(`[BOT] El número ${cleanIdentifier} pertenece a la Lista Blanca (contacto familiar/excluido). Bot ignorando mensaje.`);
-    return;
-  }
-
   const telefonoProfesional = botConfig.telefonoProfesional;
 
-  // ── 11. Buscar o crear cliente en BD ──────────────────────────────────────
+  // ── 11. Buscar o reconciliar cliente en BD ────────────────────────────────
   const isLid =
     canonicalJid.includes('@lid') ||
     data?.key?.addressingMode === 'lid' ||
-    cleanIdentifier.length > 12;
+    cleanIdentifier.length >= 14;
 
   const clientInfo = await findOrCreateClient(cleanIdentifier, data?.pushName || '', isLid);
   if (!clientInfo || !clientInfo.id) {
@@ -1838,6 +1786,13 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
   }
 
   const clientId = clientInfo.id;
+
+  // ── 10b. Validar si el cliente o su número está en la Lista Blanca ──────────
+  const isWhitelisted = await isNumberInWhiteList(cleanIdentifier, clientInfo?.numero);
+  if (isWhitelisted) {
+    console.log(`[BOT] El remitente ${cleanIdentifier} (asociado: ${clientInfo?.numero || 'N/A'}) está en la Lista Blanca. Bot ignorando mensaje.`);
+    return;
+  }
 
   // ── 12. Verificar si el cliente ya está en estado HUMANO ──────────────────
   const inHumanState = await isClientInHumanState(clientId);
@@ -1941,40 +1896,20 @@ async function resolveClientIdByJid(canonicalJid) {
   const cleanIdentifier = extractCleanIdentifier(canonicalJid);
   if (!cleanIdentifier) return null;
 
-  const isLid =
-    canonicalJid.includes('@lid') ||
-    cleanIdentifier.length > 12;
+  const isLid = canonicalJid.includes('@lid') || cleanIdentifier.length >= 14;
+  const last10 = cleanIdentifier.length >= 10 ? cleanIdentifier.slice(-10) : cleanIdentifier;
 
   try {
-    let data;
+    let query = supabase.from('clientes').select('id');
     if (isLid) {
-      const { data: lidData, error: lidError } = await supabase
-        .from('clientes')
-        .select('id')
-        .eq('lid', cleanIdentifier)
-        .limit(1);
-
-      if (lidError) {
-        console.error('[BD] Error al buscar cliente por LID:', lidError.message);
-        return null;
-      }
-      data = lidData;
+      query = query.eq('lid', cleanIdentifier);
     } else {
-      const { data: phoneData, error: phoneError } = await supabase
-        .from('clientes')
-        .select('id')
-        .eq('numero', cleanIdentifier)
-        .limit(1);
-
-      if (phoneError) {
-        console.error('[BD] Error al buscar cliente por número:', phoneError.message);
-        return null;
-      }
-      data = phoneData;
+      query = query.or(`numero.eq.${cleanIdentifier},numero.ilike.%${last10},lid.eq.${cleanIdentifier}`);
     }
 
-    if (data && data.length > 0) {
-      return data[0].id;
+    const { data, error } = await query.limit(1).maybeSingle();
+    if (!error && data?.id) {
+      return data.id;
     }
   } catch (err) {
     console.error('[BD] Error inesperado en resolveClientIdByJid:', err.message);

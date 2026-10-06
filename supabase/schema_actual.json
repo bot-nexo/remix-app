@@ -1,0 +1,127 @@
+[
+  {
+    "estructura_completa_db": {
+      "tablas_y_columnas": [
+        {
+          "tabla": "clientes",
+          "columnas": [
+            { "columna": "id", "tipo": "uuid", "es_nulo": "NO", "default": "gen_random_uuid()" },
+            { "columna": "nombre", "tipo": "text", "es_nulo": "NO", "default": null },
+            { "columna": "numero", "tipo": "text", "es_nulo": "YES", "default": null },
+            { "columna": "lid", "tipo": "text", "es_nulo": "YES", "default": null },
+            { "columna": "created_at", "tipo": "timestamp with time zone", "es_nulo": "NO", "default": "CURRENT_TIMESTAMP" }
+          ]
+        },
+        {
+          "tabla": "empresa",
+          "columnas": [
+            { "columna": "id", "tipo": "uuid", "es_nulo": "NO", "default": "gen_random_uuid()" },
+            { "columna": "user_id", "tipo": "uuid", "es_nulo": "YES", "default": null },
+            { "columna": "nombre", "tipo": "text", "es_nulo": "NO", "default": null },
+            { "columna": "direccion", "tipo": "text", "es_nulo": "NO", "default": null },
+            { "columna": "horario", "tipo": "text", "es_nulo": "YES", "default": null },
+            { "columna": "politicas", "tipo": "text", "es_nulo": "YES", "default": null },
+            { "columna": "color_primario", "tipo": "text", "es_nulo": "YES", "default": "'#2563eb'::text" },
+            { "columna": "color_secundario", "tipo": "text", "es_nulo": "YES", "default": "'#1e40af'::text" },
+            { "columna": "logo_url", "tipo": "text", "es_nulo": "YES", "default": null },
+            { "columna": "nom_bot", "tipo": "text", "es_nulo": "YES", "default": "'Mia'::text" },
+            { "columna": "created_at", "tipo": "timestamp with time zone", "es_nulo": "NO", "default": "CURRENT_TIMESTAMP" }
+          ]
+        },
+        {
+          "tabla": "servicios",
+          "columnas": [
+            { "columna": "id", "tipo": "uuid", "es_nulo": "NO", "default": "gen_random_uuid()" },
+            { "columna": "user_id", "tipo": "uuid", "es_nulo": "NO", "default": null },
+            { "columna": "nombre", "tipo": "text", "es_nulo": "NO", "default": null },
+            { "columna": "valor", "tipo": "numeric", "es_nulo": "NO", "default": "0" },
+            { "columna": "duracion_minutos", "tipo": "integer", "es_nulo": "NO", "default": null },
+            { "columna": "created_at", "tipo": "timestamp with time zone", "es_nulo": "NO", "default": "CURRENT_TIMESTAMP" },
+            { "columna": "activo", "tipo": "boolean", "es_nulo": "YES", "default": "true" }
+          ]
+        },
+        {
+          "tabla": "lista_blanca",
+          "columnas": [
+            { "columna": "id", "tipo": "uuid", "es_nulo": "NO", "default": "gen_random_uuid()" },
+            { "columna": "user_id", "tipo": "uuid", "es_nulo": "NO", "default": null },
+            { "columna": "nombre_contacto", "tipo": "text", "es_nulo": "NO", "default": null },
+            { "columna": "numero_whatsapp", "tipo": "text", "es_nulo": "NO", "default": null },
+            { "columna": "created_at", "tipo": "timestamp with time zone", "es_nulo": "NO", "default": "CURRENT_TIMESTAMP" }
+          ]
+        },
+        {
+          "tabla": "citas",
+          "columnas": [
+            { "columna": "id", "tipo": "uuid", "es_nulo": "NO", "default": "gen_random_uuid()" },
+            { "columna": "user_id", "tipo": "uuid", "es_nulo": "NO", "default": null },
+            { "columna": "cliente_nombre", "tipo": "text", "es_nulo": "YES", "default": null },
+            { "columna": "cliente_numero", "tipo": "text", "es_nulo": "YES", "default": null },
+            { "columna": "servicio_id", "tipo": "uuid", "es_nulo": "YES", "default": null },
+            { "columna": "fecha_inicio", "tipo": "date", "es_nulo": "YES", "default": null },
+            { "columna": "hora_inicio", "tipo": "time without time zone", "es_nulo": "YES", "default": null },
+            { "columna": "estado", "tipo": "text", "es_nulo": "YES", "default": "'agendada'::text" },
+            { "columna": "created_at", "tipo": "timestamp with time zone", "es_nulo": "NO", "default": "CURRENT_TIMESTAMP" },
+            { "columna": "hora_fin", "tipo": "time without time zone", "es_nulo": "YES", "default": null },
+            { "columna": "cliente_id", "tipo": "uuid", "es_nulo": "YES", "default": null },
+            { "columna": "duracion_servicio", "tipo": "bigint", "es_nulo": "YES", "default": null },
+            { "columna": "recordatorio_24h_enviado", "tipo": "boolean", "es_nulo": "YES", "default": "false" },
+            { "columna": "recordatorio_2h_enviado", "tipo": "boolean", "es_nulo": "YES", "default": "false" }
+          ]
+        },
+        {
+          "tabla": "configuracion",
+          "columnas": [
+            { "columna": "id", "tipo": "uuid", "es_nulo": "NO", "default": "gen_random_uuid()" },
+            { "columna": "user_id", "tipo": "uuid", "es_nulo": "NO", "default": null },
+            { "columna": "clave", "tipo": "text", "es_nulo": "NO", "default": null },
+            { "columna": "valor", "tipo": "text", "es_nulo": "NO", "default": null },
+            { "columna": "created_at", "tipo": "timestamp with time zone", "es_nulo": "NO", "default": "CURRENT_TIMESTAMP" }
+          ]
+        },
+        {
+          "tabla": "horario_atencion",
+          "columnas": [
+            { "columna": "id", "tipo": "uuid", "es_nulo": "NO", "default": "gen_random_uuid()" },
+            { "columna": "user_id", "tipo": "uuid", "es_nulo": "NO", "default": null },
+            { "columna": "hora_inicio", "tipo": "time without time zone", "es_nulo": "NO", "default": null },
+            { "columna": "hora_fin", "tipo": "time without time zone", "es_nulo": "NO", "default": null },
+            { "columna": "activo", "tipo": "boolean", "es_nulo": "YES", "default": "true" },
+            { "columna": "created_at", "tipo": "timestamp with time zone", "es_nulo": "NO", "default": "CURRENT_TIMESTAMP" },
+            { "columna": "fecha", "tipo": "date", "es_nulo": "NO", "default": null },
+            { "columna": "dia_semana", "tipo": "integer", "es_nulo": "YES", "default": null }
+          ]
+        },
+        {
+          "tabla": "bloqueos_agenda",
+          "columnas": [
+            { "columna": "id", "tipo": "uuid", "es_nulo": "NO", "default": "gen_random_uuid()" },
+            { "columna": "user_id", "tipo": "uuid", "es_nulo": "NO", "default": null },
+            { "columna": "fecha", "tipo": "date", "es_nulo": "NO", "default": null },
+            { "columna": "hora_inicio", "tipo": "time without time zone", "es_nulo": "YES", "default": null },
+            { "columna": "hora_fin", "tipo": "time without time zone", "es_nulo": "YES", "default": null },
+            { "columna": "bloqueo_completo", "tipo": "boolean", "es_nulo": "YES", "default": "false" },
+            { "columna": "motivo", "tipo": "text", "es_nulo": "YES", "default": null },
+            { "columna": "created_at", "tipo": "timestamp with time zone", "es_nulo": "NO", "default": "CURRENT_TIMESTAMP" }
+          ]
+        },
+        {
+          "tabla": "conversacion_estado",
+          "columnas": [
+            { "columna": "id", "tipo": "uuid", "es_nulo": "NO", "default": "gen_random_uuid()" },
+            { "columna": "telefono", "tipo": "text", "es_nulo": "NO", "default": null },
+            { "columna": "estado", "tipo": "USER-DEFINED", "es_nulo": "NO", "default": "'MENU_PRINCIPAL'::estado_conversacion" },
+            { "columna": "servicio_id", "tipo": "uuid", "es_nulo": "YES", "default": null },
+            { "columna": "fecha", "tipo": "date", "es_nulo": "YES", "default": null },
+            { "columna": "hora", "tipo": "time without time zone", "es_nulo": "YES", "default": null },
+            { "columna": "cita_id", "tipo": "uuid", "es_nulo": "YES", "default": null },
+            { "columna": "cliente_id", "tipo": "text", "es_nulo": "YES", "default": null },
+            { "columna": "updated_at", "tipo": "timestamp with time zone", "es_nulo": "NO", "default": "CURRENT_TIMESTAMP" },
+            { "columna": "hora_fin", "tipo": "time without time zone", "es_nulo": "YES", "default": null },
+            { "columna": "duracion_servicio", "tipo": "bigint", "es_nulo": "YES", "default": null }
+          ]
+        }
+      ]
+    }
+  }
+]

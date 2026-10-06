@@ -40,9 +40,21 @@ const EVOLUTION_WEBHOOK_URL = process.env.EVOLUTION_WEBHOOK_URL || `http://local
 const EVOLUTION_WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET || '';
 const WHATSAPP_ADMIN_USER_ID = process.env.WHATSAPP_ADMIN_USER_ID || '';
 const BOOKING_LINK_SECRET = process.env.BOOKING_LINK_SECRET || '';
-const FRONTEND_ORIGINS = new Set(
-  (process.env.FRONTEND_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean)
-);
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://angelnails.tech',
+  'https://www.angelnails.tech',
+  'https://angelnailsagenda.netlify.app',
+  'http://localhost:5757',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5757',
+  'http://127.0.0.1:5173',
+];
+const envOrigins = (process.env.FRONTEND_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const FRONTEND_ORIGINS = new Set([...DEFAULT_ALLOWED_ORIGINS, ...envOrigins]);
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -1073,18 +1085,27 @@ function requireAdminKey(req, res, next) {
 const app = express();
 app.use((req, res, next) => {
   const origin = req.get('Origin');
-  if (origin && !FRONTEND_ORIGINS.has(origin)) {
-    return res.status(403).json({ error: 'Origen no permitido.' });
-  }
 
   if (origin) {
-    res.set('Access-Control-Allow-Origin', origin);
-    res.set('Vary', 'Origin');
-    res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, apikey');
-    res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  };
+    const isAllowed = FRONTEND_ORIGINS.has(origin) || FRONTEND_ORIGINS.has('*');
+    if (isAllowed) {
+      res.set('Access-Control-Allow-Origin', origin);
+      res.set('Vary', 'Origin');
+      res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, apikey, x-api-key');
+      res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.set('Access-Control-Allow-Credentials', 'true');
+    } else {
+      if (req.method === 'OPTIONS') {
+        return res.status(403).send('Origen no permitido.');
+      }
+      return res.status(403).json({ error: 'Origen no permitido.' });
+    }
+  }
 
-  if (req.method === 'OPTIONS') return res.sendStatus(origin ? 204 : 403);
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
   next();
 });
 app.use(express.json());

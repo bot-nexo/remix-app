@@ -74,26 +74,55 @@ export async function obtenerClientesPaginados({
   };
 }
 
-/**
- * Crear un cliente manualmente en el sistema
- */
-export async function crearCliente(cliente: { nombre: string; numero: string }): Promise<Cliente> {
+export async function crearCliente(cliente: { nombre: string; numero: string; lid?: string }): Promise<Cliente> {
+  const cleanPhone = cliente.numero ? cliente.numero.replace(/\D/g, '') : '';
+  const numToUse = cleanPhone || cliente.numero.trim();
+
+  // 1. Buscar si la clienta ya existe por número
+  if (numToUse) {
+    const { data: existente } = await supabase
+      .from('clientes')
+      .select('*')
+      .eq('numero', numToUse)
+      .maybeSingle();
+
+    if (existente) {
+      if (cliente.nombre.trim() && (existente.nombre === 'Cliente WhatsApp' || existente.nombre === 'Cliente Directo' || !existente.nombre)) {
+        const { data: updated } = await supabase
+          .from('clientes')
+          .update({ nombre: cliente.nombre.trim() })
+          .eq('id', existente.id)
+          .select()
+          .single();
+        return (updated as Cliente) || (existente as Cliente);
+      }
+      return existente as Cliente;
+    }
+  }
+
+  // 2. Insertar nuevo cliente
   const { data, error } = await supabase
     .from('clientes')
     .insert([
       {
         nombre: cliente.nombre.trim(),
-        numero: cliente.numero.trim(),
+        numero: numToUse || null,
+        lid: cliente.lid || null,
       },
     ])
     .select()
     .single();
 
   if (error) {
-    console.error('Error al crear cliente:', error);
     if (error.code === '23505') {
-      throw new Error('Ya existe un cliente registrado con este número telefónico.');
+      const { data: existente } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('numero', numToUse)
+        .maybeSingle();
+      if (existente) return existente as Cliente;
     }
+    console.error('Error al crear cliente:', error);
     throw new Error(error.message || 'Error al guardar cliente.');
   }
 

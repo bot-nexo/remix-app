@@ -425,12 +425,30 @@ function matchFaq(normalizedText) {
  * @returns {string}          - Texto de respuesta.
  */
 function buildResponseText(faq, clientId = '') {
+  let bookingUrl = PWA_URL;
+  if (clientId) {
+    const token = createBookingToken(clientId);
+    if (token) {
+      const url = new URL(PWA_URL);
+      url.searchParams.set('id', clientId);
+      url.searchParams.set('token', token);
+      bookingUrl = url.toString();
+    }
+  }
+
   if (faq) {
     let text = faq.message || '';
 
+    // Reemplazar enlaces al portal sin ID por el enlace con ID y token del cliente
+    text = text.replace(/https?:\/\/[^\s]*angelnails[^\s]*\/reservar(?!\?id=)/gi, bookingUrl);
+
     // Si la FAQ tiene un link propio (ej: precios, pedidos), agregar
     if (faq.link) {
-      text += `\n\n${faq.link}`;
+      let faqLink = faq.link;
+      if (faqLink.includes('/reservar') && !faqLink.includes('?id=')) {
+        faqLink = bookingUrl;
+      }
+      text += `\n\n${faqLink}`;
     }
 
     return text;
@@ -523,8 +541,10 @@ async function findOrCreateClient(identifier, pushName = '', isLid = false, expl
       const updates = {};
       if (phoneToUse && !cliente.numero) updates.numero = phoneToUse;
       if (lidToUse && !cliente.lid) updates.lid = lidToUse;
-      if (pushName && pushName !== 'Cliente WhatsApp' && cliente.nombre === 'Cliente WhatsApp') {
-        updates.nombre = pushName;
+      if (pushName && pushName.trim() && pushName !== 'Cliente WhatsApp' && pushName !== 'Cliente Directo') {
+        if (!cliente.nombre || cliente.nombre === 'Cliente WhatsApp' || cliente.nombre === 'Cliente Directo') {
+          updates.nombre = pushName.trim();
+        }
       }
 
       if (Object.keys(updates).length > 0) {
@@ -535,7 +555,7 @@ async function findOrCreateClient(identifier, pushName = '', isLid = false, expl
     }
 
     // 2. Si no existe, crearlo correctamente en Supabase
-    const nombreFinal = pushName || 'Cliente WhatsApp';
+    const nombreFinal = pushName && pushName.trim() ? pushName.trim() : 'Cliente WhatsApp';
     const { data: insertData, error: insertError } = await supabase
       .from('clientes')
       .insert({
@@ -547,6 +567,16 @@ async function findOrCreateClient(identifier, pushName = '', isLid = false, expl
       .single();
 
     if (insertError) {
+      if (insertError.code === '23505') {
+        let fallbackQuery = supabase.from('clientes').select('id, nombre, numero, lid');
+        if (phoneToUse) {
+          fallbackQuery = fallbackQuery.eq('numero', phoneToUse);
+        } else if (lidToUse) {
+          fallbackQuery = fallbackQuery.eq('lid', lidToUse);
+        }
+        const { data: fallbackData } = await fallbackQuery.maybeSingle();
+        if (fallbackData) return fallbackData;
+      }
       console.error('[BD] Error al crear cliente:', insertError.message);
       return null;
     }
@@ -666,6 +696,35 @@ async function getPlantillasFromDB(userId = WHATSAPP_ADMIN_USER_ID) {
 function formatPlantillaMensaje(plantilla, datos = {}) {
   if (!plantilla) return '';
 
+  let bookingLink = datos.link_reserva || '';
+  const clientId = datos.cliente_id || datos.id || datos.idCliente;
+
+  if (clientId) {
+    const token = createBookingToken(clientId);
+    if (token) {
+      const url = new URL(PWA_URL);
+      url.searchParams.set('id', clientId);
+      url.searchParams.set('token', token);
+      bookingLink = url.toString();
+    }
+  }
+
+  if (!bookingLink || !bookingLink.includes('?id=')) {
+    if (clientId) {
+      const token = createBookingToken(clientId);
+      if (token) {
+        const url = new URL(PWA_URL);
+        url.searchParams.set('id', clientId);
+        url.searchParams.set('token', token);
+        bookingLink = url.toString();
+      }
+    }
+  }
+
+  if (!bookingLink) {
+    bookingLink = PWA_URL;
+  }
+
   const sustitutos = {
     '{nombre_cliente}': datos.nombre_cliente || datos.cliente_nombre || 'Cliente',
     '{servicio}': datos.servicio || datos.servicio_nombre || 'Servicio',
@@ -673,7 +732,7 @@ function formatPlantillaMensaje(plantilla, datos = {}) {
     '{hora_cita}': datos.hora_cita || datos.hora || '',
     '{nombre_empresa}': datos.nombre_empresa || datos.empresa || empresaData?.nombre || 'Angel Nails Studio',
     '{direccion_empresa}': datos.direccion_empresa || datos.direccion || empresaData?.direccion || '',
-    '{link_reserva}': datos.link_reserva || 'https://angelnails.tech/reservar',
+    '{link_reserva}': bookingLink,
   };
 
   const reemplazar = (texto) => {
@@ -1248,11 +1307,20 @@ app.get('/api/booking/public-info', asyncRoute(async (_req, res) => {
   });
 }));
 
-app.get('/api/booking/context', requireBookingAccess, asyncRoute(async (_req, res) => {
+app.get('/api/booking/context', requireBookingAccess, asyncRoute(async (req, res) => {
   await loadEmpresaData();
   const botConfig = await getBotConfigFromDB();
   if (!botConfig) {
     return res.status(503).json({ error: 'No se pudo cargar la configuración del negocio.' });
+  }
+
+  let clientInfo = null;
+  if (req.bookingClientId) {
+    const { data } = await supabase.from('clientes')
+      .select('id, nombre, numero, lid')
+      .eq('id', req.bookingClientId)
+      .maybeSingle();
+    if (data) clientInfo = data;
   }
 
   return res.json({
@@ -1264,6 +1332,13 @@ app.get('/api/booking/context', requireBookingAccess, asyncRoute(async (_req, re
       nom_bot: empresaData.nom_bot,
     } : null,
     professionalPhone: botConfig?.telefonoProfesional || null,
+    client: clientInfo ? {
+      id: clientInfo.id,
+      nombre: clientInfo.nombre,
+      telefono: clientInfo.numero || '',
+      numero: clientInfo.numero || '',
+      lid: clientInfo.lid || null,
+    } : null,
   });
 }));
 
@@ -1294,15 +1369,23 @@ app.post('/api/booking/appointments', requireBookingAccess, asyncRoute(async (re
     return res.status(400).json({ error: 'Completa los datos de la reserva.' });
   }
 
+  // 1. Sincronizar o crear el cliente para asegurar datos consistentes
+  const cleanPhone = phone.trim().replace(/\D/g, '');
+  const fullPhone = (cleanPhone.length === 10 && cleanPhone.startsWith('3')) ? `57${cleanPhone}` : cleanPhone;
+  const synchronizedClient = await findOrCreateClient(fullPhone, name.trim(), false, fullPhone);
+  const effectiveClientId = synchronizedClient?.id || req.bookingClientId;
+
+  // 2. Insertar cita segura
   const { data, error } = await supabase.rpc('reservar_cita_segura', {
     p_user_id: WHATSAPP_ADMIN_USER_ID,
     p_servicio_id: serviceId,
-    p_cliente_id: req.bookingClientId,
+    p_cliente_id: effectiveClientId,
     p_cliente_nombre: name.trim(),
-    p_cliente_numero: phone.trim(),
+    p_cliente_numero: fullPhone,
     p_fecha: date,
     p_hora_inicio: startTime,
   });
+
   if (error) {
     console.error('[Booking Error] Error en RPC reservar_cita_segura:', error);
     let status = 503;
@@ -1317,13 +1400,48 @@ app.post('/api/booking/appointments', requireBookingAccess, asyncRoute(async (re
 
     return res.status(status).json({ error: message, details: error.details || null });
   }
+
+  // 3. Disparar notificaciones WhatsApp en segundo plano
+  (async () => {
+    try {
+      const { data: servicioData } = await supabase.from('servicios').select('nombre').eq('id', serviceId).maybeSingle();
+      const servicioNombre = servicioData?.nombre || 'Servicio';
+
+      const plantillas = await getPlantillasFromDB(WHATSAPP_ADMIN_USER_ID);
+      const plantillaTarget = plantillas.confirmacion;
+
+      if (plantillaTarget && fullPhone) {
+        const messageText = formatPlantillaMensaje(plantillaTarget, {
+          nombre_cliente: name.trim(),
+          telefono_cliente: fullPhone,
+          servicio: servicioNombre,
+          fecha_cita: date,
+          hora_cita: startTime,
+        });
+
+        const recipient = `${fullPhone}@s.whatsapp.net`;
+        await sendEvolutionMessage(recipient, messageText, true);
+        console.log(`[BOOKING] Mensaje de confirmación enviado por WhatsApp a ${fullPhone}`);
+      }
+
+      const botConfig = await getBotConfigFromDB();
+      if (botConfig?.telefonoProfesional) {
+        const adminMsg = `📅 *¡Nueva cita agendada online!*\n\n👤 *Clienta:* ${name.trim()}\n📱 *Teléfono:* ${fullPhone}\n💅 *Servicio:* ${servicioNombre}\n🗓️ *Fecha:* ${date}\n⏰ *Hora:* ${startTime}`;
+        const adminRecipient = `${botConfig.telefonoProfesional.replace(/\D/g, '')}@s.whatsapp.net`;
+        await sendEvolutionMessage(adminRecipient, adminMsg, false);
+      }
+    } catch (notifyErr) {
+      console.error('[BOOKING] Error enviando WhatsApp de confirmación:', notifyErr?.message || notifyErr);
+    }
+  })();
+
   return res.status(201).json({ appointment: data });
 }));
 
 app.post('/api/booking/appointments/:id/cancel', requireBookingAccess, asyncRoute(async (req, res) => {
   if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: 'Cita inválida.' });
 
-  const query = supabase.from('citas').select('estado')
+  const query = supabase.from('citas').select('*, servicios(nombre)')
     .eq('id', req.params.id)
     .eq('user_id', WHATSAPP_ADMIN_USER_ID)
     .eq('cliente_id', req.bookingClientId);
@@ -1349,6 +1467,34 @@ app.post('/api/booking/appointments/:id/cancel', requireBookingAccess, asyncRout
     return res.status(503).json({ error: error.message || 'No se pudo cancelar la cita.' });
   }
   if (!data) return res.status(409).json({ error: 'La cita cambió de estado; actualiza e intenta de nuevo.' });
+
+  // Notificar cancelación por WhatsApp
+  (async () => {
+    try {
+      const cleanNum = (cita.cliente_numero || '').replace(/\D/g, '');
+      if (cleanNum) {
+        const plantillas = await getPlantillasFromDB(WHATSAPP_ADMIN_USER_ID);
+        const plantillaTarget = plantillas.cancelacion;
+        if (plantillaTarget) {
+          const msg = formatPlantillaMensaje(plantillaTarget, {
+            nombre_cliente: cita.cliente_nombre || 'Clienta',
+            servicio: cita.servicios?.nombre || 'Servicio',
+            fecha_cita: cita.fecha_inicio,
+            hora_cita: cita.hora_inicio,
+          });
+          await sendEvolutionMessage(`${cleanNum}@s.whatsapp.net`, msg, true);
+        }
+      }
+      const botConfig = await getBotConfigFromDB();
+      if (botConfig?.telefonoProfesional) {
+        const adminMsg = `❌ *Cita Cancelada por la Clienta*\n\n👤 *Clienta:* ${cita.cliente_nombre}\n📱 *Tel:* ${cita.cliente_numero}\n🗓️ *Fecha:* ${cita.fecha_inicio} a las ${cita.hora_inicio}`;
+        await sendEvolutionMessage(`${botConfig.telefonoProfesional.replace(/\D/g, '')}@s.whatsapp.net`, adminMsg, false);
+      }
+    } catch (e) {
+      console.error('[BOOKING CANCEL NOTIFY ERROR]', e.message);
+    }
+  })();
+
   return res.json({ ok: true });
 }));
 
@@ -1380,6 +1526,37 @@ app.post('/api/booking/appointments/:id/reschedule', requireBookingAccess, async
 
     return res.status(status).json({ error: message, details: error.details || null });
   }
+
+  // Notificar reagendamiento por WhatsApp
+  (async () => {
+    try {
+      const { data: citaData } = await supabase.from('citas').select('*, servicios(nombre)').eq('id', req.params.id).maybeSingle();
+      if (citaData) {
+        const cleanNum = (citaData.cliente_numero || '').replace(/\D/g, '');
+        if (cleanNum) {
+          const plantillas = await getPlantillasFromDB(WHATSAPP_ADMIN_USER_ID);
+          const plantillaTarget = plantillas.reagendamiento;
+          if (plantillaTarget) {
+            const msg = formatPlantillaMensaje(plantillaTarget, {
+              nombre_cliente: citaData.cliente_nombre || 'Clienta',
+              servicio: citaData.servicios?.nombre || 'Servicio',
+              fecha_cita: date,
+              hora_cita: startTime,
+            });
+            await sendEvolutionMessage(`${cleanNum}@s.whatsapp.net`, msg, true);
+          }
+        }
+        const botConfig = await getBotConfigFromDB();
+        if (botConfig?.telefonoProfesional) {
+          const adminMsg = `🔄 *Cita Reagendada Online*\n\n👤 *Clienta:* ${citaData.cliente_nombre}\n💅 *Servicio:* ${citaData.servicios?.nombre || 'Servicio'}\n🗓️ *Nueva Fecha:* ${date}\n⏰ *Nueva Hora:* ${startTime}`;
+          await sendEvolutionMessage(`${botConfig.telefonoProfesional.replace(/\D/g, '')}@s.whatsapp.net`, adminMsg, false);
+        }
+      }
+    } catch (e) {
+      console.error('[BOOKING RESCHEDULE NOTIFY ERROR]', e.message);
+    }
+  })();
+
   return res.json({ appointment: data });
 }));
 
@@ -1824,7 +2001,16 @@ app.post('/api/templates/send', async (req, res) => {
 
     const cleanNum = to.replace(/\D/g, '');
     const toRecipient = to.includes('@') ? to : `${cleanNum}@s.whatsapp.net`;
-    const messageText = formatPlantillaMensaje(plantillaTarget, customData || {});
+
+    let enrichedData = { ...(customData || {}) };
+    if (!enrichedData.cliente_id && cleanNum) {
+      const client = await findOrCreateClient(cleanNum, enrichedData.nombre_cliente || '', false, cleanNum);
+      if (client?.id) {
+        enrichedData.cliente_id = client.id;
+      }
+    }
+
+    const messageText = formatPlantillaMensaje(plantillaTarget, enrichedData);
 
     await sendEvolutionMessage(toRecipient, messageText, true);
     console.log(`[API TEMPLATES] Mensaje de plantilla "${templateType}" enviado a ${cleanNum}`);

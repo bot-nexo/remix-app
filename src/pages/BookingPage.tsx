@@ -103,10 +103,17 @@ export default function BookingPage() {
       setLoading(true);
       const [empresaData, bookingContext] = await Promise.all([
         obtenerEmpresaConfig(),
-        bookingRequest<{ professionalPhone?: string }>('/context', bookingToken),
+        bookingRequest<{ professionalPhone?: string; client?: { id: string; nombre: string; telefono: string } }>('/context', bookingToken),
       ]);
       setEmpresa(empresaData);
       setTelefonoProfesional(bookingContext.professionalPhone || '');
+      if (bookingContext.client) {
+        setCliente({
+          id: bookingContext.client.id || customerAccess?.id || '',
+          nombre: bookingContext.client.nombre || '',
+          telefono: bookingContext.client.telefono || '',
+        });
+      }
     } catch (err) {
       console.error(err);
       showToast('No pudimos cargar la información inicial.', 'error');

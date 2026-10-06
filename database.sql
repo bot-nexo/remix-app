@@ -58,7 +58,8 @@ CREATE TABLE public.clientes (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
 
   CONSTRAINT clientes_pkey PRIMARY KEY (id),
-  CONSTRAINT clientes_numero_key UNIQUE (numero)
+  CONSTRAINT clientes_numero_key UNIQUE (numero),
+  CONSTRAINT clientes_lid_key UNIQUE (lid)
 ) TABLESPACE pg_default;
 
 -- 5. CITAS

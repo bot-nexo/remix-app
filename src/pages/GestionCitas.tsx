@@ -302,11 +302,29 @@ export default function GestionCitas() {
                 ? `57${cleanPhone}`
                 : cleanPhone;
 
-            // 1. Crear o actualizar cliente en BD para asegurar de tener numero y lid discriminados
+            // 1. Crear o obtener cliente en BD para asociar su cliente_id de forma obligatoria
+            let clienteIdFinal: string | null = null;
             try {
-                await crearCliente({ nombre: nombreClienteForm, numero: fullPhone });
+                const clienteObj = await crearCliente({ nombre: nombreClienteForm, numero: fullPhone });
+                if (clienteObj?.id) {
+                    clienteIdFinal = clienteObj.id;
+                }
             } catch (err) {
-                // Si la clienta ya existe por número, continuar transparentemente
+                // Fallback de búsqueda si ocurrió algún inconveniente
+                const { data: existente } = await supabase
+                    .from('clientes')
+                    .select('id')
+                    .eq('numero', fullPhone)
+                    .maybeSingle();
+                if (existente?.id) {
+                    clienteIdFinal = existente.id;
+                }
+            }
+
+            if (!clienteIdFinal) {
+                showToast('No se pudo obtener el ID del cliente. Verifica los datos.', 'error');
+                setGuardandoCita(false);
+                return;
             }
 
             // 2. Calcular hora_fin en base a la duración del servicio
@@ -319,10 +337,11 @@ export default function GestionCitas() {
             const mFin = String(totalFinMin % 60).padStart(2, '0');
             const horaFinStr = `${hFin}:${mFin}`;
 
-            // 3. Insertar cita en Supabase
+            // 3. Insertar cita en Supabase garantizando el cliente_id
             const { error: insertErr } = await supabase.from('citas').insert([
                 {
                     user_id: user.id,
+                    cliente_id: clienteIdFinal,
                     cliente_nombre: nombreClienteForm.trim(),
                     cliente_numero: fullPhone,
                     servicio_id: servicioIdForm,

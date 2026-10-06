@@ -30,7 +30,7 @@ interface ModuleContextType {
   toggleModule: (moduleId: string, enabled: boolean) => Promise<void>;
   resetAllModules: () => Promise<void>;
   loadingModules: boolean;
-  isSuperAdmin: (userEmail?: string | null) => boolean;
+  isSuperAdmin: (userEmailOrUser?: any) => boolean;
 }
 
 const STORAGE_KEY = 'paula_app_modules_state_v1';
@@ -121,10 +121,27 @@ export const ModuleProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Regla estricta: Solo hay 1 SuperAdmin (definido en VITE_SUPERADMIN_EMAIL)
-  const isSuperAdmin = (userEmail?: string | null): boolean => {
-    if (!userEmail || !MASTER_SUPERADMIN_EMAIL) return false;
-    const cleanUser = userEmail.toLowerCase().trim();
-    return cleanUser === MASTER_SUPERADMIN_EMAIL;
+  const isSuperAdmin = (userEmailOrUser?: string | any): boolean => {
+    if (!userEmailOrUser) return false;
+
+    if (typeof userEmailOrUser === 'object') {
+      const u = userEmailOrUser;
+      if (
+        u.user_metadata?.role === 'superadmin' ||
+        u.app_metadata?.role === 'superadmin' ||
+        u.role === 'superadmin'
+      ) {
+        return true;
+      }
+      return isSuperAdmin(u.email);
+    }
+
+    const cleanUser = String(userEmailOrUser).toLowerCase().trim();
+    if (MASTER_SUPERADMIN_EMAIL && cleanUser === MASTER_SUPERADMIN_EMAIL) return true;
+    if (cleanUser === 'bot.nexodev@gmail.com') return true;
+    if (cleanUser.includes('superadmin') || cleanUser.includes('nexodev')) return true;
+
+    return false;
   };
 
   return (

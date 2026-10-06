@@ -44,7 +44,7 @@ export default function DashboardLayout() {
     return <Navigate to="/login" replace />;
   }
 
-  const userIsSuper = isSuperAdmin(user?.email);
+  const userIsSuper = isSuperAdmin(user);
 
   const allNavigation = [
     { id: 'dashboard', name: 'Dashboard', href: '/', icon: LayoutDashboard },

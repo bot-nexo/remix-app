@@ -46,7 +46,7 @@ export default function SuperAdmin() {
   const { modulesState, toggleModule, resetAllModules, isSuperAdmin } = useModules();
 
   // Regla estricta: Solo 1 SuperAdmin
-  if (!user || !isSuperAdmin(user.email)) {
+  if (!user || !isSuperAdmin(user)) {
     return <Navigate to="/" replace />;
   }
 

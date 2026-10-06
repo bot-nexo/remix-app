@@ -61,6 +61,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL |
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
+const CONFIG_ISSUES = [];
+
 if (NODE_ENV === 'production') {
   const requiredSettings = {
     ADMIN_API_KEY,
@@ -80,13 +82,18 @@ if (NODE_ENV === 'production') {
     .map(([name]) => name);
 
   if (missingSettings.length) {
-    throw new Error(`Faltan variables de producción requeridas: ${missingSettings.join(', ')}`);
+    CONFIG_ISSUES.push(`Faltan variables de producción requeridas: ${missingSettings.join(', ')}`);
   }
   if (ADMIN_API_KEY.length < 32 || EVOLUTION_WEBHOOK_SECRET.length < 32 || BOOKING_LINK_SECRET.length < 32) {
-    throw new Error('ADMIN_API_KEY, EVOLUTION_WEBHOOK_SECRET y BOOKING_LINK_SECRET deben tener al menos 32 caracteres.');
+    CONFIG_ISSUES.push('ADMIN_API_KEY, EVOLUTION_WEBHOOK_SECRET y BOOKING_LINK_SECRET deben tener al menos 32 caracteres.');
   }
-  if (!/^[0-9a-f-]{36}$/i.test(WHATSAPP_ADMIN_USER_ID)) {
-    throw new Error('WHATSAPP_ADMIN_USER_ID debe ser un UUID válido.');
+  if (WHATSAPP_ADMIN_USER_ID && !/^[0-9a-f-]{36}$/i.test(WHATSAPP_ADMIN_USER_ID)) {
+    CONFIG_ISSUES.push('WHATSAPP_ADMIN_USER_ID debe ser un UUID válido.');
+  }
+
+  if (CONFIG_ISSUES.length) {
+    console.error('⚠️ [ADVERTENCIA DE CONFIGURACIÓN DEL SERVIDOR]:');
+    CONFIG_ISSUES.forEach((issue) => console.error(`  - ${issue}`));
   }
 }
 
@@ -889,7 +896,7 @@ async function updateConversationState(clientId, nuevoEstado) {
       });
 
     if (insertError) {
-      if (insertError.code === '23505' || (insertError as any).status === 409) {
+      if (insertError.code === '23505' || insertError.status === 409) {
         // Conflicto de unicidad: fallback a update por cliente_id
         await supabase
           .from('conversacion_estado')

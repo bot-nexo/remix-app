@@ -22,6 +22,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Cliente, Cita } from '../types/types';
 import {
@@ -34,6 +35,7 @@ import {
 
 export default function Clientes() {
   const { showToast } = useToast();
+  const { user } = useAuth();
 
   // Estados de datos y paginación
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -73,9 +75,14 @@ export default function Clientes() {
   // Cargar lista blanca desde Supabase
   const cargarListaBlanca = async () => {
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = user?.id || userData?.user?.id;
+      if (!currentUserId) return;
+
       const { data } = await supabase
         .from('lista_blanca')
-        .select('numero_whatsapp');
+        .select('numero_whatsapp')
+        .eq('user_id', currentUserId);
 
       if (data) {
         const phonesSet = new Set<string>();
@@ -93,7 +100,7 @@ export default function Clientes() {
 
   useEffect(() => {
     cargarListaBlanca();
-  }, []);
+  }, [user]);
 
   const handleToggleListaBlanca = async (cliente: Cliente) => {
     if (!cliente.numero) {
@@ -107,11 +114,20 @@ export default function Clientes() {
     );
 
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = user?.id || userData?.user?.id;
+
+      if (!currentUserId) {
+        showToast('Usuario no autenticado.', 'error');
+        return;
+      }
+
       if (isCurrentlyWhitelisted) {
         // Eliminar de la lista blanca
         const { error } = await supabase
           .from('lista_blanca')
           .delete()
+          .eq('user_id', currentUserId)
           .ilike('numero_whatsapp', `%${cleanPhone}%`);
 
         if (error) throw error;
@@ -122,14 +138,11 @@ export default function Clientes() {
         showToast(`"${cliente.nombre}" removido(a) de la Lista Blanca. El bot volverá a responderle.`, 'warning');
       } else {
         // Agregar a la lista blanca
-        const { data: userData } = await supabase.auth.getUser();
-        const userId = userData?.user?.id;
-
         const { error } = await supabase
           .from('lista_blanca')
           .insert({
-            user_id: userId,
-            nombre: cliente.nombre,
+            user_id: currentUserId,
+            nombre_contacto: cliente.nombre,
             numero_whatsapp: cliente.numero,
           });
 

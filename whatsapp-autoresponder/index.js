@@ -198,6 +198,53 @@ function extractCleanIdentifier(jid) {
 }
 
 /**
+ * Verifica si un texto corresponde al comando para cerrar atención humana ('cerrar.' o 'cerrar').
+ * @param {string} text
+ * @returns {boolean}
+ */
+function isCerrarCommand(text) {
+  if (!text) return false;
+  const clean = text.trim().toLowerCase();
+  return clean === 'cerrar.' || clean === 'cerrar';
+}
+
+/**
+ * Verifica si un texto corresponde al comando para pausar el bot ('pausar.' o 'pausar').
+ * @param {string} text
+ * @returns {boolean}
+ */
+function isPausarCommand(text) {
+  if (!text) return false;
+  const clean = text.trim().toLowerCase();
+  return clean === 'pausar.' || clean === 'pausar';
+}
+
+/**
+ * Verifica si un número telefónico está en la lista blanca de la BD (contactos excluidos).
+ * @param {string} cleanIdentifier
+ * @returns {Promise<boolean>}
+ */
+async function isNumberInWhiteList(cleanIdentifier) {
+  if (!cleanIdentifier) return false;
+  try {
+    const cleanPhone = cleanIdentifier.replace(/\D/g, '');
+    const { data, error } = await supabase
+      .from('lista_blanca')
+      .select('numero_whatsapp');
+
+    if (error || !data) return false;
+
+    return data.some((row) => {
+      const dbPhone = (row.numero_whatsapp || '').replace(/\D/g, '');
+      return dbPhone && (cleanPhone.endsWith(dbPhone) || dbPhone.endsWith(cleanPhone));
+    });
+  } catch (err) {
+    console.error('[BD] Error al verificar lista blanca:', err.message);
+    return false;
+  }
+}
+
+/**
  * Construye una URL de Google Maps a partir de una dirección.
  * @param {string} direccion
  * @returns {string} URL de Google Maps o vacío si no hay dirección.
@@ -707,6 +754,7 @@ async function updateConversationState(clientId, nuevoEstado) {
       .upsert({
         cliente_id: clientId,
         estado: nuevoEstado,
+        updated_at: new Date().toISOString(),
       }, {
         onConflict: 'cliente_id',
       });
@@ -724,25 +772,46 @@ async function updateConversationState(clientId, nuevoEstado) {
 }
 
 /**
- * Verifica si un cliente está en estado HUMANO.
+ * Verifica si un cliente está en estado HUMANO, validando tiempo de expiración (6 horas de inactividad).
  * @param {string} clientId - UUID del cliente.
  * @returns {Promise<boolean>}
  */
 async function isClientInHumanState(clientId) {
+  const now = Date.now();
+
+  // 1. Verificar si está en el caché en memoria
+  if (humanStateCache.has(clientId)) {
+    const lastInteraction = humanStateCache.get(clientId);
+    if (now - lastInteraction < HUMAN_STATE_EXPIRATION_MS) {
+      return true;
+    } else {
+      console.log(`[BOT] Expiraron las 2 horas de inactividad humana para el cliente ${clientId}. Reseteando a MENU_PRINCIPAL.`);
+      humanStateCache.delete(clientId);
+      await updateConversationState(clientId, 'MENU_PRINCIPAL');
+      return false;
+    }
+  }
+
+  // 2. Si no está en caché, consultar Supabase
   try {
     const { data, error } = await supabase
       .from('conversacion_estado')
-      .select('estado')
+      .select('estado, updated_at')
       .eq('cliente_id', clientId)
       .limit(1);
 
-    if (error) {
-      console.error('[BD] Error al verificar estado HUMANO:', error.message);
-      return false;
-    }
+    if (error || !data || data.length === 0) return false;
 
-    if (data && data.length > 0) {
-      return data[0].estado === 'HUMANO';
+    if (data[0].estado === 'HUMANO') {
+      const updatedAt = data[0].updated_at ? new Date(data[0].updated_at).getTime() : now;
+      if (now - updatedAt < HUMAN_STATE_EXPIRATION_MS) {
+        humanStateCache.set(clientId, updatedAt);
+        return true;
+      } else {
+        console.log(`[BOT] Expiraron las 2 horas de inactividad (BD) para el cliente ${clientId}. Reseteando a MENU_PRINCIPAL.`);
+        await updateConversationState(clientId, 'MENU_PRINCIPAL');
+        return false;
+      }
     }
 
     return false;
@@ -1314,7 +1383,10 @@ app.post('/api/booking/appointments/:id/reschedule', requireBookingAccess, async
   return res.json({ appointment: data });
 }));
 
-// Mapeo en memoria de clientes que ya están en estado HUMANO (optimización)
+// Expiración por inactividad del estado HUMANO (2 horas en ms)
+const HUMAN_STATE_EXPIRATION_MS = 2 * 60 * 60 * 1000;
+
+// Mapeo en memoria de clientes que ya están en estado HUMANO (clientId => timestamp)
 const humanStateCache = new Map();
 
 /**
@@ -1324,7 +1396,7 @@ async function loadHumanStateCache() {
   try {
     const { data, error } = await supabase
       .from('conversacion_estado')
-      .select('cliente_id, estado')
+      .select('cliente_id, estado, updated_at')
       .eq('estado', 'HUMANO');
 
     if (error) {
@@ -1333,12 +1405,18 @@ async function loadHumanStateCache() {
     }
 
     if (data) {
+      const now = Date.now();
       for (const row of data) {
-        humanStateCache.set(row.cliente_id, true);
+        const updatedAt = row.updated_at ? new Date(row.updated_at).getTime() : now;
+        if (now - updatedAt > HUMAN_STATE_EXPIRATION_MS) {
+          await updateConversationState(row.cliente_id, 'MENU_PRINCIPAL');
+        } else {
+          humanStateCache.set(row.cliente_id, updatedAt);
+        }
       }
     }
 
-    console.log(`[CACHE] Cargados ${humanStateCache.size} clientes en estado HUMANO.`);
+    console.log(`[CACHE] Cargados ${humanStateCache.size} clientes activos en estado HUMANO.`);
   } catch (err) {
     console.warn('[CACHE] Error al cargar caché HUMANO:', err.message);
   }
@@ -1365,27 +1443,33 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
   const fromMe = data?.key?.fromMe === true;
 
   if (fromMe) {
-    // ── 3a. Si es mensaje propio (del profesional/instancia), validar si es "cerrar." ──
+    // ── 3a. Si es mensaje propio (del profesional/instancia) ──────────────────
     const rawText =
       data?.message?.conversation ||
       data?.message?.extendedTextMessage?.text ||
       '';
 
-    if (isCerrarCommand(rawText)) {
-      // El profesional escribió "cerrar." → actualizar estado del cliente a MENU_PRINCIPAL
-      const canonicalJid = getCanonicalJid(data);
-      if (canonicalJid) {
-        const clientId = await resolveClientIdByJid(canonicalJid);
-        if (clientId) {
+    const canonicalJid = getCanonicalJid(data);
+    if (canonicalJid && !canonicalJid.includes('@g.us') && !canonicalJid.includes('@newsletter')) {
+      const clientId = await resolveClientIdByJid(canonicalJid);
+      if (clientId) {
+        if (isCerrarCommand(rawText)) {
+          // El profesional escribió "cerrar." → reactivar el bot para este chat
           const updated = await updateConversationState(clientId, 'MENU_PRINCIPAL');
           if (updated) {
             humanStateCache.delete(clientId);
-            console.log('[BOT] Profesional cerró la conversación.');
+            console.log(`[BOT] Profesional envió comando 'cerrar.' para el cliente ${clientId}. Bot reactivado.`);
+          }
+        } else {
+          // El profesional escribió cualquier otro mensaje al cliente → auto-cambiar a HUMANO
+          const updated = await updateConversationState(clientId, 'HUMANO');
+          if (updated) {
+            humanStateCache.set(clientId, Date.now());
+            console.log(`[BOT] Intervención de la profesional detectada para el cliente ${clientId}. Estado actualizado a HUMANO (Bot silenciado).`);
           }
         }
       }
     }
-    // Si no es "cerrar.", ignorar completamente (es el profesional atendiendo)
     return;
   }
 
@@ -1437,6 +1521,13 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
     return;
   }
 
+  // ── 10b. Validar si el número está en la Lista Blanca (Contacto Excluido / Familiar) ──
+  const isWhitelisted = await isNumberInWhiteList(cleanIdentifier);
+  if (isWhitelisted) {
+    console.log(`[BOT] El número ${cleanIdentifier} pertenece a la Lista Blanca (contacto familiar/excluido). Bot ignorando mensaje.`);
+    return;
+  }
+
   const telefonoProfesional = botConfig.telefonoProfesional;
 
   // ── 11. Buscar o crear cliente en BD ──────────────────────────────────────
@@ -1454,19 +1545,34 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
   const clientId = clientInfo.id;
 
   // ── 12. Verificar si el cliente ya está en estado HUMANO ──────────────────
-  const inHumanState = humanStateCache.has(clientId) ||
-                       await isClientInHumanState(clientId);
+  const inHumanState = await isClientInHumanState(clientId);
 
   if (inHumanState) {
-    console.log('[BOT] Mensaje ignorado porque la conversación está en estado HUMANO.');
+    if (isCerrarCommand(rawText)) {
+      await updateConversationState(clientId, 'MENU_PRINCIPAL');
+      humanStateCache.delete(clientId);
+      console.log(`[BOT] Conversación con el cliente ${clientId} cerrada vía comando 'cerrar.'. Bot reactivado.`);
+      return;
+    }
+
+    // Actualizar la última interacción para renovar las 6 horas de inactividad
+    humanStateCache.set(clientId, Date.now());
+    console.log(`[BOT] Mensaje de cliente ${clientId} ignorado porque la conversación está en estado HUMANO (atención manual activa).`);
     return;
   }
 
-  // ── 13. Detectar comando "cerrar." del cliente ────────────────────────────
+  // ── 13. Detectar comando "cerrar." o "pausar." del cliente ────────────────
   if (isCerrarCommand(rawText)) {
     await updateConversationState(clientId, 'MENU_PRINCIPAL');
     humanStateCache.delete(clientId);
-    console.log('[BOT] Conversación cerrada por el cliente.');
+    console.log('[BOT] Conversación reseteada a MENU_PRINCIPAL por comando cerrar.');
+    return;
+  }
+
+  if (isPausarCommand(rawText)) {
+    await updateConversationState(clientId, 'HUMANO');
+    humanStateCache.set(clientId, Date.now());
+    console.log('[BOT] Bot pausado manualmente para este chat por comando pausar.');
     return;
   }
 
@@ -1482,7 +1588,7 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
     // Actualizar estado a HUMANO
     const updated = await updateConversationState(clientId, 'HUMANO');
     if (updated) {
-      humanStateCache.set(clientId, true);
+      humanStateCache.set(clientId, Date.now());
     }
 
     // Responder al cliente que será atendido por un asesor

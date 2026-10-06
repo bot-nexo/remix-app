@@ -1,7 +1,8 @@
-import { AlertCircle, Bot, Link2, Loader2, MessageCircle, Phone, RefreshCw, Save, Unlink } from 'lucide-react';
+import { AlertCircle, Bot, Eye, EyeOff, KeyRound, Link2, Loader2, Lock, MessageCircle, Phone, RefreshCw, Save, Unlink } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { useModules } from '../contexts/ModuleContext';
 import { supabase } from '../lib/supabase';
 import {
     createInstance,
@@ -31,6 +32,7 @@ function mapWAStatus(status: string): ConnectionStatus {
 export default function Configuracion() {
   const { showToast } = useToast();
   const { user } = useAuth();
+  const { isModuleEnabled } = useModules();
   const [botActive, setBotActive] = useState(false);
   const [tolerancia, setTolerancia] = useState('15');
   const [metaVentas, setMetaVentas] = useState('1000000');
@@ -38,6 +40,12 @@ export default function Configuracion() {
   const [telefonoProfesional, setTelefonoProfesional] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Password change state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   // WhatsApp QR state
   const [waStatus, setWaStatus] = useState<ConnectionStatus>('checking');
@@ -480,10 +488,109 @@ export default function Configuracion() {
         <div className="flex justify-end">
           <button type="submit" disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-brand-primary hover:bg-brand-secondary text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-brand-primary/15 disabled:opacity-50">
             <Save size={16} />
-            {saving ? 'Guardando...' : 'Guardar Cambios'}
+            {saving ? 'Guardando...' : 'Guardar Ajustes Generales'}
           </button>
         </div>
       </form>
+
+      {/* Sección Independiente: Cambiar Contraseña de Administrador */}
+      {isModuleEnabled('cambiar-password') ? (
+        <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800/60 p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-indigo-500/10 text-indigo-600 rounded-xl">
+              <KeyRound size={22} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Cambiar Contraseña de Administrador</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Actualiza la clave secreta para acceder al panel administrativo.</p>
+            </div>
+          </div>
+
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            if (!newPassword || newPassword.length < 6) {
+              showToast('La contraseña debe tener al menos 6 caracteres.', 'error');
+              return;
+            }
+            if (newPassword !== confirmPassword) {
+              showToast('Las contraseñas no coinciden.', 'error');
+              return;
+            }
+            setUpdatingPassword(true);
+            try {
+              const { error } = await supabase.auth.updateUser({ password: newPassword });
+              if (error) {
+                showToast(`Error al cambiar contraseña: ${error.message}`, 'error');
+              } else {
+                showToast('¡Contraseña de Administrador actualizada con éxito!', 'success');
+                setNewPassword('');
+                setConfirmPassword('');
+              }
+            } catch (err: any) {
+              showToast(`Error de conexión: ${err?.message || 'No se pudo actualizar'}`, 'error');
+            } finally {
+              setUpdatingPassword(false);
+            }
+          }} className="space-y-4 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                  Nueva Contraseña
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                    required
+                    minLength={6}
+                    className="w-full px-4 py-2.5 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                  Confirmar Contraseña
+                </label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repite la contraseña"
+                  required
+                  minLength={6}
+                  className="w-full px-4 py-2.5 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                disabled={updatingPassword}
+                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-indigo-600/15 disabled:opacity-50"
+              >
+                <Lock size={16} />
+                {updatingPassword ? 'Actualizando Contraseña...' : 'Actualizar Contraseña'}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : (
+        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2 font-medium">
+          <Lock size={16} className="text-slate-400" />
+          <span>El cambio de contraseña ha sido deshabilitado por el SuperAdmin.</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -18,8 +18,11 @@ import {
   Filter,
   RefreshCw,
   Send,
+  ShieldAlert,
+  ShieldCheck,
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { supabase } from '../lib/supabase';
 import { Cliente, Cita } from '../types/types';
 import {
   obtenerClientesPaginados,
@@ -63,6 +66,84 @@ export default function Clientes() {
   // Modal Enviar Mensaje WhatsApp
   const [modalWaOpen, setModalWaOpen] = useState(false);
   const [mensajeWa, setMensajeWa] = useState('');
+
+  // Estado Lista Blanca
+  const [whiteListPhones, setWhiteListPhones] = useState<Set<string>>(new Set());
+
+  // Cargar lista blanca desde Supabase
+  const cargarListaBlanca = async () => {
+    try {
+      const { data } = await supabase
+        .from('lista_blanca')
+        .select('numero_whatsapp');
+
+      if (data) {
+        const phonesSet = new Set<string>();
+        data.forEach((row) => {
+          if (row.numero_whatsapp) {
+            phonesSet.add(row.numero_whatsapp.replace(/\D/g, ''));
+          }
+        });
+        setWhiteListPhones(phonesSet);
+      }
+    } catch (err) {
+      console.warn('[CLIENTES] Error cargando lista blanca:', err);
+    }
+  };
+
+  useEffect(() => {
+    cargarListaBlanca();
+  }, []);
+
+  const handleToggleListaBlanca = async (cliente: Cliente) => {
+    if (!cliente.numero) {
+      showToast('Este cliente no tiene un teléfono registrado.', 'error');
+      return;
+    }
+
+    const cleanPhone = cliente.numero.replace(/\D/g, '');
+    const isCurrentlyWhitelisted = Array.from(whiteListPhones).some(
+      (p) => p.endsWith(cleanPhone) || cleanPhone.endsWith(p)
+    );
+
+    try {
+      if (isCurrentlyWhitelisted) {
+        // Eliminar de la lista blanca
+        const { error } = await supabase
+          .from('lista_blanca')
+          .delete()
+          .ilike('numero_whatsapp', `%${cleanPhone}%`);
+
+        if (error) throw error;
+
+        const newSet = new Set(whiteListPhones);
+        newSet.delete(cleanPhone);
+        setWhiteListPhones(newSet);
+        showToast(`"${cliente.nombre}" removido(a) de la Lista Blanca. El bot volverá a responderle.`, 'warning');
+      } else {
+        // Agregar a la lista blanca
+        const { data: userData } = await supabase.auth.getUser();
+        const userId = userData?.user?.id;
+
+        const { error } = await supabase
+          .from('lista_blanca')
+          .insert({
+            user_id: userId,
+            nombre: cliente.nombre,
+            numero_whatsapp: cliente.numero,
+          });
+
+        if (error) throw error;
+
+        const newSet = new Set(whiteListPhones);
+        newSet.add(cleanPhone);
+        setWhiteListPhones(newSet);
+        showToast(`¡"${cliente.nombre}" agregado(a) a la Lista Blanca! El bot lo ignorará siempre (Contacto Excluido).`, 'success');
+      }
+    } catch (err: any) {
+      showToast(`Error en Lista Blanca: ${err?.message || 'Error de base de datos'}`, 'error');
+    }
+  };
 
   // Debounce para búsqueda
   useEffect(() => {
@@ -364,6 +445,7 @@ export default function Clientes() {
                 <tr>
                   <th className="py-3.5 px-5">Cliente</th>
                   <th className="py-3.5 px-4">Teléfono WhatsApp</th>
+                  <th className="py-3.5 px-4">Exclusión Bot (Lista Blanca)</th>
                   <th className="py-3.5 px-4">Fecha de Registro</th>
                   <th className="py-3.5 px-4 text-center">Historial</th>
                   <th className="py-3.5 px-5 text-right">Acciones</th>
@@ -379,6 +461,11 @@ export default function Clientes() {
                         year: 'numeric',
                       })
                     : 'N/A';
+
+                  const cleanPhone = c.numero ? c.numero.replace(/\D/g, '') : '';
+                  const isWhitelisted = cleanPhone && Array.from(whiteListPhones).some(
+                    (p) => p.endsWith(cleanPhone) || cleanPhone.endsWith(p)
+                  );
 
                   return (
                     <tr key={c.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors group">
@@ -408,6 +495,36 @@ export default function Clientes() {
                           </div>
                         ) : (
                           <span className="text-slate-400 dark:text-slate-600 italic text-xs">Sin registrar</span>
+                        )}
+                      </td>
+
+                      {/* Exclusión Bot (Lista Blanca) */}
+                      <td className="py-4 px-4">
+                        {c.numero ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleListaBlanca(c)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                              isWhitelisted
+                                ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 shadow-xs'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/40'
+                            }`}
+                            title={isWhitelisted ? 'Contacto Excluido del bot (Familiar/Amigo). El bot lo ignora. Haz clic para reactivar el bot.' : 'Haz clic para incluir en la Lista Blanca e ignorar con el bot (Esposo, hijos, padres, etc.)'}
+                          >
+                            {isWhitelisted ? (
+                              <>
+                                <ShieldAlert size={14} className="text-amber-600 dark:text-amber-400" />
+                                <span>Excluido del Bot</span>
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck size={14} className="text-slate-400" />
+                                <span>Bot Activo</span>
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <span className="text-slate-400 text-xs italic">-</span>
                         )}
                       </td>
 

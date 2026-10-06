@@ -13,20 +13,25 @@ import {
   Sun,
   Tags,
   Users,
+  ShieldCheck,
+  ShieldAlert,
   X
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useModules } from '../contexts/ModuleContext';
+import WhatsAppHelpModal from '../components/WhatsAppHelpModal';
 
 export default function DashboardLayout() {
   const { user, loading, signOut } = useAuth();
   const { isDarkMode, toggleTheme, companyName, logoUrl } = useTheme();
+  const { isModuleEnabled, isSuperAdmin } = useModules();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [desktopNavCollapsed, setDesktopNavCollapsed] = useState(false);
-
+  const [helpModalOpen, setHelpModalOpen] = useState(false);
 
   if (loading) {
     return (
@@ -39,20 +44,29 @@ export default function DashboardLayout() {
     return <Navigate to="/login" replace />;
   }
 
-  const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Calendario', href: '/calendario', icon: CalendarHeart },
-    { name: 'Clientes', href: '/clientes', icon: Users },
-    { name: 'Configuración', href: '/config', icon: Settings },
-    { name: 'Empresa', href: '/empresa', icon: Building2 },
-    { name: 'Gestión de Citas', href: '/gestion-citas', icon: CalendarClock },
-    { name: 'Personaliz. Mensajes', href: '/mensajes-whatsapp', icon: MessageSquareText },
-    { name: 'Servicios', href: '/servicios', icon: Tags },
+  const userIsSuper = isSuperAdmin(user?.email);
+
+  const allNavigation = [
+    { id: 'dashboard', name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { id: 'calendario', name: 'Calendario', href: '/calendario', icon: CalendarHeart },
+    { id: 'gestion-citas', name: 'Gestión de Citas', href: '/gestion-citas', icon: CalendarClock },
+    { id: 'clientes', name: 'Clientes & Exclusiones', href: '/clientes', icon: Users },
+    { id: 'mensajes-whatsapp', name: 'Personaliz. Mensajes', href: '/mensajes-whatsapp', icon: MessageSquareText },
+    { id: 'servicios', name: 'Servicios', href: '/servicios', icon: Tags },
+    { id: 'empresa', name: 'Empresa', href: '/empresa', icon: Building2 },
+    { id: 'configuracion', name: 'Configuración', href: '/config', icon: Settings },
+    { id: 'superadmin', name: 'Control SuperAdmin', href: '/superadmin', icon: ShieldCheck },
   ];
+
+  // Filter modules according to active status and single SuperAdmin rule
+  const visibleNavigation = allNavigation.filter(item => {
+    if (item.id === 'superadmin') return userIsSuper;
+    if (item.id === 'configuracion') return true;
+    return isModuleEnabled(item.id);
+  });
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
-  //*************************
   return (
     <div className="admin-shell min-h-screen min-w-0 overflow-x-hidden bg-slate-50 dark:bg-[#020617] flex flex-col md:flex-row">
       {/* Mobile Header */}
@@ -68,9 +82,27 @@ export default function DashboardLayout() {
             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wider">Panel Admin</span>
           </div>
         </div>
-        <button aria-label={mobileMenuOpen ? 'Cerrar menu' : 'Abrir menu'} onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-        </button>
+
+        <div className="flex items-center gap-2">
+          {/* WhatsApp Help Trigger (Mobile) */}
+          <button
+            type="button"
+            onClick={() => setHelpModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 text-emerald-700 dark:text-emerald-300 font-bold text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-all shadow-xs"
+            title="Ayuda Bot WhatsApp"
+          >
+            <MessageSquareText size={16} className="text-emerald-600 dark:text-emerald-400" />
+            <span className="text-[11px]">Ayuda Bot</span>
+          </button>
+
+          <button 
+            aria-label={mobileMenuOpen ? 'Cerrar menu' : 'Abrir menu'} 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)} 
+            className="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+          >
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+        </div>
       </div>
 
       {/* Sidebar */}
@@ -112,8 +144,9 @@ export default function DashboardLayout() {
         {/* Navigation */}
         <nav className={`flex-1 py-5 space-y-1 overflow-y-auto ${desktopNavCollapsed ? 'px-2' : 'px-3'}`}>
           {!desktopNavCollapsed && <p className="px-4 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-600">Operación</p>}
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             const isActive = location.pathname === item.href;
+            const isSuper = item.id === 'superadmin';
             return (
               <Link
                 key={item.name}
@@ -124,12 +157,14 @@ export default function DashboardLayout() {
                   group flex items-center rounded-xl py-3 text-sm font-medium transition-all duration-200
                   ${desktopNavCollapsed ? 'justify-center px-2' : 'gap-3 px-4'}
                   ${isActive
-                    ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/20'
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
+                    ? isSuper ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30' : 'bg-brand-primary text-white shadow-md shadow-brand-primary/20'
+                    : isSuper
+                      ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50/60 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-bold'
+                      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white'
                   }
                 `}
               >
-                <item.icon size={18} className={isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors'} />
+                <item.icon size={18} className={isActive ? 'text-white' : isSuper ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors'} />
                 <span className={desktopNavCollapsed ? 'sr-only' : undefined}>{item.name}</span>
               </Link>
             );
@@ -175,13 +210,34 @@ export default function DashboardLayout() {
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-primary">Panel administrativo</p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Gestiona tu agenda con calma y claridad.</p>
             </div>
-            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Sistema activo
+
+            <div className="flex items-center gap-3">
+              {/* WhatsApp Help Trigger (Desktop) */}
+              <button
+                type="button"
+                onClick={() => setHelpModalOpen(true)}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 text-emerald-700 dark:text-emerald-300 font-bold text-xs hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-all shadow-xs"
+                title="Ayuda Bot WhatsApp y Comandos"
+              >
+                <MessageSquareText size={15} className="text-emerald-600 dark:text-emerald-400" />
+                <span>Ayuda Bot WA</span>
+              </button>
+
+              <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Sistema activo
+              </div>
             </div>
           </div>
+
           <Outlet />
         </div>
       </main>
+
+      {/* WhatsApp Help Modal */}
+      <WhatsAppHelpModal
+        isOpen={helpModalOpen}
+        onClose={() => setHelpModalOpen(false)}
+      />
 
       {/* Mobile overlay */}
       {mobileMenuOpen && (

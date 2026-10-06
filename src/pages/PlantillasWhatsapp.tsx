@@ -16,6 +16,10 @@ import {
   MousePointerClick,
   Eye,
   Sliders,
+  Bot,
+  UserCheck,
+  Clock,
+  Terminal,
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -55,8 +59,8 @@ export default function PlantillasWhatsapp() {
     servicio: 'Manicura Rusa Express',
     fecha_cita: '15 de Octubre, 2026',
     hora_cita: '04:00 PM',
-    nombre_empresa: 'Angel Nails Studio',
-    direccion_empresa: 'Calle 45 # 18-24, Local 2',
+    nombre_empresa: 'Angel Nails',
+    direccion_empresa: 'Cra 45 # 65-12 piso 2',
     link_reserva: 'https://angelnails.com/reservar',
   });
 

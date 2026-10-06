@@ -109,7 +109,27 @@ export async function crearCliente(cliente: { nombre: string; numero: string; li
     }
   }
 
-  // 2. Insertar nuevo cliente
+  // 1.5. Si no se encontró por número, buscar si existe una clienta creada vía WhatsApp (con numero NULL) por coincidencia de nombre
+  if (numToUse && cliente.nombre.trim()) {
+    const { data: sinNumero } = await supabase
+      .from('clientes')
+      .select('*')
+      .is('numero', null)
+      .ilike('nombre', cliente.nombre.trim())
+      .limit(1)
+      .maybeSingle();
+
+    if (sinNumero) {
+      const { data: updated } = await supabase
+        .from('clientes')
+        .update({ numero: numToUse })
+        .eq('id', sinNumero.id)
+        .select()
+        .single();
+
+      return (updated as Cliente) || (sinNumero as Cliente);
+    }
+  }
   const { data, error } = await supabase
     .from('clientes')
     .insert([

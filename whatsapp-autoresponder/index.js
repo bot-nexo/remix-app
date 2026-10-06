@@ -521,7 +521,7 @@ async function loadEmpresaData() {
  * @param {string} explicitPhone - Teléfono explícito enviado si se conoce.
  * @returns {Promise<{ id: string, nombre?: string, numero?: string, lid?: string } | null>}
  */
-async function findOrCreateClient(identifier, pushName = '', isLid = false, explicitPhone = null) {
+async function findOrCreateClient(identifier, pushName = '', isLid = false, explicitPhone = null, explicitClientId = null) {
   try {
     const cleanId = (identifier || '').replace(/\D/g, '');
     const cleanPhone = (explicitPhone || '').replace(/\D/g, '');
@@ -533,8 +533,19 @@ async function findOrCreateClient(identifier, pushName = '', isLid = false, expl
 
     let cliente = null;
 
+    // 0. Si se proporciona explícitamente el ID del cliente (ej: desde el token de la reserva o URL)
+    if (explicitClientId) {
+      const { data: idData } = await supabase
+        .from('clientes')
+        .select('id, numero, lid, nombre')
+        .eq('id', explicitClientId)
+        .maybeSingle();
+
+      if (idData) cliente = idData;
+    }
+
     // 1. Buscar primero en BD por número
-    if (phoneToUse) {
+    if (!cliente && phoneToUse) {
       const { data: phoneData } = await supabase
         .from('clientes')
         .select('id, numero, lid, nombre')
@@ -544,7 +555,7 @@ async function findOrCreateClient(identifier, pushName = '', isLid = false, expl
       if (phoneData) cliente = phoneData;
     }
 
-    // Buscar por LID si no se encontró por número
+    // 2. Buscar por LID si no se encontró por número
     if (!cliente && lidToUse) {
       const { data: lidData } = await supabase
         .from('clientes')
@@ -555,13 +566,28 @@ async function findOrCreateClient(identifier, pushName = '', isLid = false, expl
       if (lidData) cliente = lidData;
     }
 
-    // Si el cliente ya existe pero le faltaba el número o el LID, actualizarlo para reconciliar (Merge)
+    // 3. Reconciliación: Si se busca por número y no se encuentra por número ni LID,
+    // buscar si existe un cliente creado vía WhatsApp (con numero NULL) cuyo nombre coincida
+    if (!cliente && phoneToUse && pushName && pushName.trim() && !['Cliente WhatsApp', 'Cliente Directo'].includes(pushName.trim())) {
+      const { data: nameData } = await supabase
+        .from('clientes')
+        .select('id, numero, lid, nombre')
+        .is('numero', null)
+        .ilike('nombre', pushName.trim())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (nameData) cliente = nameData;
+    }
+
+    // 4. Si el cliente ya existe pero le faltaba el número o el LID, actualizarlo para reconciliar (Merge)
     if (cliente) {
       const updates = {};
       if (phoneToUse && !cliente.numero) updates.numero = phoneToUse;
       if (lidToUse && !cliente.lid) updates.lid = lidToUse;
-      if (pushName && pushName.trim() && pushName !== 'Cliente WhatsApp' && pushName !== 'Cliente Directo') {
-        if (!cliente.nombre || cliente.nombre === 'Cliente WhatsApp' || cliente.nombre === 'Cliente Directo') {
+      if (pushName && pushName.trim() && !['Cliente WhatsApp', 'Cliente Directo'].includes(pushName.trim())) {
+        if (!cliente.nombre || ['Cliente WhatsApp', 'Cliente Directo'].includes(cliente.nombre)) {
           updates.nombre = pushName.trim();
         }
       }
@@ -573,7 +599,7 @@ async function findOrCreateClient(identifier, pushName = '', isLid = false, expl
       return { id: cliente.id, ...cliente, ...updates };
     }
 
-    // 2. Si no existe, crearlo correctamente en Supabase
+    // 5. Si no existe en absoluto, crearlo en Supabase
     const nombreFinal = pushName && pushName.trim() ? pushName.trim() : 'Cliente WhatsApp';
     const { data: insertData, error: insertError } = await supabase
       .from('clientes')
@@ -586,7 +612,7 @@ async function findOrCreateClient(identifier, pushName = '', isLid = false, expl
       .single();
 
     if (insertError) {
-      if (insertError.code === '23505') {
+      if (insertError.code === '23505' || insertError.status === 409) {
         let fallbackQuery = supabase.from('clientes').select('id, nombre, numero, lid');
         if (phoneToUse) {
           fallbackQuery = fallbackQuery.eq('numero', phoneToUse);
@@ -1461,7 +1487,7 @@ app.post('/api/booking/appointments', requireBookingAccess, asyncRoute(async (re
   // 1. Sincronizar o crear el cliente para asegurar datos consistentes
   const cleanPhone = phone.trim().replace(/\D/g, '');
   const fullPhone = (cleanPhone.length === 10 && cleanPhone.startsWith('3')) ? `57${cleanPhone}` : cleanPhone;
-  const synchronizedClient = await findOrCreateClient(fullPhone, name.trim(), false, fullPhone);
+  const synchronizedClient = await findOrCreateClient(fullPhone, name.trim(), false, fullPhone, req.bookingClientId);
   const effectiveClientId = synchronizedClient?.id || req.bookingClientId;
 
   // 2. Insertar cita segura

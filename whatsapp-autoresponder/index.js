@@ -1087,19 +1087,14 @@ app.use((req, res, next) => {
   const origin = req.get('Origin');
 
   if (origin) {
-    const isAllowed = FRONTEND_ORIGINS.has(origin) || FRONTEND_ORIGINS.has('*');
-    if (isAllowed) {
-      res.set('Access-Control-Allow-Origin', origin);
-      res.set('Vary', 'Origin');
-      res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, apikey, x-api-key');
-      res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.set('Access-Control-Allow-Credentials', 'true');
-    } else {
-      if (req.method === 'OPTIONS') {
-        return res.status(403).send('Origen no permitido.');
-      }
-      return res.status(403).json({ error: 'Origen no permitido.' });
-    }
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Vary', 'Origin');
+    res.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, apikey, x-api-key, Cache-Control, Pragma, X-Requested-With');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.set('Access-Control-Allow-Credentials', 'true');
+    res.set('Access-Control-Max-Age', '86400');
+  } else {
+    res.set('Access-Control-Allow-Origin', '*');
   }
 
   if (req.method === 'OPTIONS') {

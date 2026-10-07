@@ -150,12 +150,25 @@ function normalizeText(text) {
 }
 
 /**
- * Detecta si el mensaje es "cerrar." (exclusivamente ese texto, case-insensitive).
+ * Verifica si un texto corresponde al comando para cerrar atención humana ('cerrar.', 'cerrar', '.cerrar', etc.).
  * @param {string} text
  * @returns {boolean}
  */
 function isCerrarCommand(text) {
-  return normalizeText(text.trim()) === 'cerrar.';
+  if (!text) return false;
+  const clean = normalizeText(text.trim());
+  return clean === 'cerrar.' || clean === 'cerrar' || clean === '.cerrar' || clean === '#cerrar' || clean === '*cerrar*';
+}
+
+/**
+ * Verifica si un texto corresponde al comando para pausar el bot ('pausar.', 'pausar', '.pausar', etc.).
+ * @param {string} text
+ * @returns {boolean}
+ */
+function isPausarCommand(text) {
+  if (!text) return false;
+  const clean = normalizeText(text.trim());
+  return clean === 'pausar.' || clean === 'pausar' || clean === '.pausar' || clean === '#pausar' || clean === '*pausar*';
 }
 
 function createBookingToken(clientId) {
@@ -190,13 +203,7 @@ function verifyBookingToken(token) {
 
 /**
  * Devuelve el JID canónico del remitente.
- *
  * Meta está migrando identificadores de usuario de `@s.whatsapp.net` a `@lid`.
- * Evolution API expone `remoteJidAlt` cuando detecta que el JID principal
- * es un LID y el alternativo es el JID "viejo" (o viceversa).
- *
- * @param {object} data - Objeto `data` del evento `messages.upsert`.
- * @returns {string}    - JID canónico a usar como clave de cooldown y destinatario.
  */
 function getCanonicalJid(data) {
   const alt = data?.key?.remoteJidAlt;
@@ -208,34 +215,10 @@ function getCanonicalJid(data) {
 
 /**
  * Extrae el número/LID limpio (solo dígitos) para consultar/crear en BD.
- * @param {string} jid - JID canónico.
- * @returns {string}
  */
 function extractCleanIdentifier(jid) {
   const firstPart = (jid || '').split('@')[0] || '';
   return firstPart.replace(/\D/g, '');
-}
-
-/**
- * Verifica si un texto corresponde al comando para cerrar atención humana ('cerrar.' o 'cerrar').
- * @param {string} text
- * @returns {boolean}
- */
-function isCerrarCommand(text) {
-  if (!text) return false;
-  const clean = text.trim().toLowerCase();
-  return clean === 'cerrar.' || clean === 'cerrar';
-}
-
-/**
- * Verifica si un texto corresponde al comando para pausar el bot ('pausar.' o 'pausar').
- * @param {string} text
- * @returns {boolean}
- */
-function isPausarCommand(text) {
-  if (!text) return false;
-  const clean = text.trim().toLowerCase();
-  return clean === 'pausar.' || clean === 'pausar';
 }
 
 /**
@@ -792,149 +775,135 @@ function formatPlantillaMensaje(plantilla, datos = {}) {
 }
 
 /**
- * Obtiene o crea el estado de conversación para un cliente.
- * @param {string} clientId - UUID del cliente.
- * @param {string} estado   - Estado inicial si no existe ('MENU_PRINCIPAL').
- * @returns {Promise<{ estado: string } | null>}
- */
-async function getOrCreateConversationState(clientId, estado = 'MENU_PRINCIPAL') {
-  try {
-    const { data, error } = await supabase
-      .from('conversacion_estado')
-      .select('estado')
-      .eq('cliente_id', clientId)
-      .limit(1);
-
-    if (error) {
-      console.error('[BD] Error al consultar conversacion_estado:', error.message);
-      return null;
-    }
-
-    if (data && data.length > 0) {
-      return { estado: data[0].estado };
-    }
-
-    const { data: insertData, error: insertError } = await supabase
-      .from('conversacion_estado')
-      .insert({
-        cliente_id: clientId,
-        estado: estado,
-      })
-      .select('estado')
-      .single();
-
-    if (insertError) {
-      console.error('[BD] Error al crear conversacion_estado:', insertError.message);
-      return null;
-    }
-
-    return { estado: insertData.estado };
-  } catch (err) {
-    console.error('[BD] Error inesperado en getOrCreateConversationState:', err.message);
-    return null;
-  }
-}
-
-/**
- * Actualiza el estado de conversación para un cliente.
- * Usa upsert con ON CONFLICT por cliente_id.
+ * Actualiza el estado de conversación para un cliente tanto en BD como en memoria.
  * @param {string} clientId    - UUID del cliente.
  * @param {string} nuevoEstado - Nuevo estado ('HUMANO', 'MENU_PRINCIPAL', etc.).
+ * @param {string} [telefono]  - Identificador de chat o teléfono.
  * @returns {Promise<boolean>}
  */
-async function updateConversationState(clientId, nuevoEstado) {
-  if (!clientId) return false;
+async function updateConversationState(clientId, nuevoEstado, telefono = null) {
+  if (!clientId && !telefono) return false;
+  const now = Date.now();
+  const cleanTel = telefono ? telefono.replace(/\D/g, '') : null;
+
+  // 1. Actualizar caché en memoria con múltiples llaves para detección instantánea
+  if (nuevoEstado === 'HUMANO') {
+    if (clientId) humanStateCache.set(clientId, now);
+    if (cleanTel) humanStateCache.set(cleanTel, now);
+  } else {
+    if (clientId) humanStateCache.delete(clientId);
+    if (cleanTel) humanStateCache.delete(cleanTel);
+  }
+
+  // 2. Invocar RPC en Supabase
   try {
-    const { data: existente } = await supabase
-      .from('conversacion_estado')
-      .select('id')
-      .eq('cliente_id', clientId)
-      .maybeSingle();
+    const { data: rpcData, error: rpcError } = await supabase.rpc('actualizar_o_crear_conversacion_estado', {
+      p_cliente_id: clientId || null,
+      p_telefono: cleanTel || null,
+      p_nuevo_estado: nuevoEstado,
+    });
+
+    if (!rpcError && rpcData) {
+      console.log(`[CONV STATE] Estado actualizado a ${nuevoEstado} (BD) para cliente=${clientId}, tel=${cleanTel}`);
+      return true;
+    }
+
+    if (rpcError) {
+      console.warn('[CONV STATE] RPC aviso, ejecutando fallback:', rpcError.message);
+    }
+  } catch (err) {
+    console.warn('[CONV STATE] Error llamando a RPC:', err.message);
+  }
+
+  // 3. Fallback directo sobre la tabla conversacion_estado
+  try {
+    let query = supabase.from('conversacion_estado').select('id');
+    if (clientId) {
+      query = query.eq('cliente_id', clientId);
+    } else if (cleanTel) {
+      query = query.eq('telefono', cleanTel);
+    }
+
+    const { data: existente } = await query.limit(1).maybeSingle();
 
     if (existente?.id) {
-      const { error: updateError } = await supabase
+      await supabase
         .from('conversacion_estado')
         .update({
           estado: nuevoEstado,
           updated_at: new Date().toISOString(),
+          ...(cleanTel ? { telefono: cleanTel } : {}),
         })
         .eq('id', existente.id);
-
-      if (updateError) {
-        console.error('[BD] Error al actualizar conversacion_estado:', updateError.message);
-        return false;
-      }
       return true;
     }
 
-    // Si no existía, crear la fila
-    const { error: insertError } = await supabase
-      .from('conversacion_estado')
-      .insert({
-        cliente_id: clientId,
-        estado: nuevoEstado,
-        updated_at: new Date().toISOString(),
-      });
-
-    if (insertError) {
-      if (insertError.code === '23505' || insertError.status === 409) {
-        // Conflicto de unicidad: fallback a update por cliente_id
-        await supabase
-          .from('conversacion_estado')
-          .update({ estado: nuevoEstado, updated_at: new Date().toISOString() })
-          .eq('cliente_id', clientId);
-        return true;
-      }
-      console.error('[BD] Error al crear conversacion_estado:', insertError.message);
-      return false;
-    }
+    await supabase.from('conversacion_estado').insert({
+      cliente_id: clientId || null,
+      telefono: cleanTel || clientId,
+      estado: nuevoEstado,
+      updated_at: new Date().toISOString(),
+    });
 
     return true;
   } catch (err) {
-    console.error('[BD] Error inesperado en updateConversationState:', err.message);
+    console.error('[CONV STATE] Error inesperado en fallback:', err.message);
     return false;
   }
 }
 
 /**
- * Verifica si un cliente está en estado HUMANO, validando tiempo de expiración (6 horas de inactividad).
+ * Verifica si un cliente/chat está en estado HUMANO, validando expiración de inactividad (2 horas).
  * @param {string} clientId - UUID del cliente.
+ * @param {string} [cleanIdentifier] - JID/LID/Teléfono del chat.
+ * @param {string} [clientPhone] - Teléfono registrado del cliente.
  * @returns {Promise<boolean>}
  */
-async function isClientInHumanState(clientId) {
+async function isClientInHumanState(clientId, cleanIdentifier = null, clientPhone = null) {
   const now = Date.now();
+  const cleanId = (cleanIdentifier || '').replace(/\D/g, '');
+  const cleanPh = (clientPhone || '').replace(/\D/g, '');
 
-  // 1. Verificar si está en el caché en memoria
-  if (humanStateCache.has(clientId)) {
-    const lastInteraction = humanStateCache.get(clientId);
-    if (now - lastInteraction < HUMAN_STATE_EXPIRATION_MS) {
+  // 1. Verificar en caché en memoria por cualquiera de las llaves asociadas
+  const cachedTs = (clientId && humanStateCache.get(clientId)) ||
+                   (cleanId && humanStateCache.get(cleanId)) ||
+                   (cleanPh && humanStateCache.get(cleanPh));
+
+  if (cachedTs) {
+    if (now - cachedTs < HUMAN_STATE_EXPIRATION_MS) {
       return true;
     } else {
-      console.log(`[BOT] Expiraron las 2 horas de inactividad humana para el cliente ${clientId}. Reseteando a MENU_PRINCIPAL.`);
-      humanStateCache.delete(clientId);
-      await updateConversationState(clientId, 'MENU_PRINCIPAL');
+      console.log(`[BOT] Expiró el periodo de atención humana para ${clientId || cleanId}. Reactivando bot.`);
+      if (clientId) humanStateCache.delete(clientId);
+      if (cleanId) humanStateCache.delete(cleanId);
+      if (cleanPh) humanStateCache.delete(cleanPh);
+      await updateConversationState(clientId, 'MENU_PRINCIPAL', cleanId || cleanPh);
       return false;
     }
   }
 
-  // 2. Si no está en caché, consultar Supabase
+  // 2. Si no está en memoria, consultar Supabase
   try {
-    const { data, error } = await supabase
-      .from('conversacion_estado')
-      .select('estado, updated_at')
-      .eq('cliente_id', clientId)
-      .limit(1);
+    let query = supabase.from('conversacion_estado').select('estado, updated_at');
+    if (clientId) {
+      query = query.or(`cliente_id.eq.${clientId},telefono.eq.${cleanId || ''},telefono.eq.${cleanPh || ''}`);
+    } else if (cleanId) {
+      query = query.eq('telefono', cleanId);
+    }
 
-    if (error || !data || data.length === 0) return false;
+    const { data, error } = await query.limit(1).maybeSingle();
+    if (error || !data) return false;
 
-    if (data[0].estado === 'HUMANO') {
-      const updatedAt = data[0].updated_at ? new Date(data[0].updated_at).getTime() : now;
+    if (data.estado === 'HUMANO') {
+      const updatedAt = data.updated_at ? new Date(data.updated_at).getTime() : now;
       if (now - updatedAt < HUMAN_STATE_EXPIRATION_MS) {
-        humanStateCache.set(clientId, updatedAt);
+        if (clientId) humanStateCache.set(clientId, updatedAt);
+        if (cleanId) humanStateCache.set(cleanId, updatedAt);
+        if (cleanPh) humanStateCache.set(cleanPh, updatedAt);
         return true;
       } else {
-        console.log(`[BOT] Expiraron las 2 horas de inactividad (BD) para el cliente ${clientId}. Reseteando a MENU_PRINCIPAL.`);
-        await updateConversationState(clientId, 'MENU_PRINCIPAL');
+        console.log(`[BOT] Expiró el periodo de atención humana (BD) para ${clientId || cleanId}.`);
+        await updateConversationState(clientId, 'MENU_PRINCIPAL', cleanId || cleanPh);
         return false;
       }
     }
@@ -1646,7 +1615,7 @@ async function loadHumanStateCache() {
   try {
     const { data, error } = await supabase
       .from('conversacion_estado')
-      .select('cliente_id, estado, updated_at')
+      .select('cliente_id, telefono, estado, updated_at')
       .eq('estado', 'HUMANO');
 
     if (error) {
@@ -1659,14 +1628,15 @@ async function loadHumanStateCache() {
       for (const row of data) {
         const updatedAt = row.updated_at ? new Date(row.updated_at).getTime() : now;
         if (now - updatedAt > HUMAN_STATE_EXPIRATION_MS) {
-          await updateConversationState(row.cliente_id, 'MENU_PRINCIPAL');
+          await updateConversationState(row.cliente_id, 'MENU_PRINCIPAL', row.telefono);
         } else {
-          humanStateCache.set(row.cliente_id, updatedAt);
+          if (row.cliente_id) humanStateCache.set(row.cliente_id, updatedAt);
+          if (row.telefono) humanStateCache.set(row.telefono.replace(/\D/g, ''), updatedAt);
         }
       }
     }
 
-    console.log(`[CACHE] Cargados ${humanStateCache.size} clientes activos en estado HUMANO.`);
+    console.log(`[CACHE] Cargados ${humanStateCache.size} identificadores activos en estado HUMANO.`);
   } catch (err) {
     console.warn('[CACHE] Error al cargar caché HUMANO:', err.message);
   }
@@ -1689,11 +1659,10 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
     return;
   }
 
-  // ── 3. Filtrar mensajes propios ───────────────────────────────────────────
+  // ── 3. Filtrar mensajes propios (Intervención de la Profesional) ─────────
   const fromMe = data?.key?.fromMe === true;
 
   if (fromMe) {
-    // ── 3a. Si es mensaje propio (del profesional/instancia) ──────────────────
     const rawText =
       data?.message?.conversation ||
       data?.message?.extendedTextMessage?.text ||
@@ -1701,29 +1670,31 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
 
     const canonicalJid = getCanonicalJid(data);
     if (canonicalJid && !canonicalJid.includes('@g.us') && !canonicalJid.includes('@newsletter')) {
-      const clientId = await resolveClientIdByJid(canonicalJid);
-      if (clientId) {
-        if (isCerrarCommand(rawText)) {
-          // El profesional escribió "cerrar." → reactivar el bot para este chat
-          const updated = await updateConversationState(clientId, 'MENU_PRINCIPAL');
-          if (updated) {
-            humanStateCache.delete(clientId);
-            console.log(`[BOT] Profesional envió comando 'cerrar.' para el cliente ${clientId}. Bot reactivado.`);
-          }
-        } else {
-          // El profesional escribió cualquier otro mensaje al cliente → auto-cambiar a HUMANO
-          const updated = await updateConversationState(clientId, 'HUMANO');
-          if (updated) {
-            humanStateCache.set(clientId, Date.now());
-            console.log(`[BOT] Intervención de la profesional detectada para el cliente ${clientId}. Estado actualizado a HUMANO (Bot silenciado).`);
-          }
-        }
+      const cleanIdentifier = extractCleanIdentifier(canonicalJid);
+      const isLid = canonicalJid.includes('@lid') || cleanIdentifier.length >= 14;
+
+      // Resolver o crear el cliente receptor
+      const clientInfo = await findOrCreateClient(cleanIdentifier, '', isLid);
+      const clientId = clientInfo?.id || null;
+
+      if (isCerrarCommand(rawText)) {
+        // El profesional envió "cerrar." -> reactivar el bot
+        await updateConversationState(clientId, 'MENU_PRINCIPAL', cleanIdentifier);
+        console.log(`[BOT] Profesional envió comando 'cerrar.' para chat ${cleanIdentifier}. Bot reactivado.`);
+      } else if (isPausarCommand(rawText)) {
+        // El profesional envió "pausar." -> pausar el bot
+        await updateConversationState(clientId, 'HUMANO', cleanIdentifier);
+        console.log(`[BOT] Profesional envió comando 'pausar.' para chat ${cleanIdentifier}. Bot silenciado.`);
+      } else if (rawText && rawText.trim()) {
+        // La profesional envió cualquier mensaje manual -> auto-silenciar el bot para este chat
+        await updateConversationState(clientId, 'HUMANO', cleanIdentifier);
+        console.log(`[BOT] Intervención de la profesional detectada en chat ${cleanIdentifier}. Bot silenciado (HUMANO).`);
       }
     }
     return;
   }
 
-  // ── 4. De aquí en adelante, fromMe = false → mensaje de cliente ────────────
+  // ── 4. De aquí en adelante, fromMe = false → mensaje del cliente ──────────
 
   const remoteJid = data?.key?.remoteJid || '';
 
@@ -1762,12 +1733,12 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
   // ── 9. Normalizar texto ───────────────────────────────────────────────────
   const normalizedText = normalizeText(rawText);
 
-  console.log('[WEBHOOK] Mensaje de texto recibido.');
+  console.log('[WEBHOOK] Mensaje de texto recibido de:', cleanIdentifier);
 
-  // ── 10. Validar si el bot está activo ──────────────────────────────────────
+  // ── 10. Validar si el bot está activo globalmente ──────────────────────────
   const botConfig = await getBotConfigFromDB();
   if (!botConfig || !botConfig.botActivo) {
-    console.log('[BOT] Bot inactivo; mensaje ignorado.');
+    console.log('[BOT] Bot inactivo globalmente; mensaje ignorado.');
     return;
   }
 
@@ -1787,42 +1758,30 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
 
   const clientId = clientInfo.id;
 
-  // ── 10b. Validar si el cliente o su número está en la Lista Blanca ──────────
+  // ── 12. Comandos del cliente (cerrar. o pausar.) ──────────────────────────
+  if (isCerrarCommand(rawText)) {
+    await updateConversationState(clientId, 'MENU_PRINCIPAL', cleanIdentifier);
+    console.log(`[BOT] Cliente envió comando 'cerrar.' para chat ${cleanIdentifier}. Bot reactivado.`);
+    return;
+  }
+
+  if (isPausarCommand(rawText)) {
+    await updateConversationState(clientId, 'HUMANO', cleanIdentifier);
+    console.log(`[BOT] Cliente envió comando 'pausar.' para chat ${cleanIdentifier}. Bot silenciado.`);
+    return;
+  }
+
+  // ── 13. Validar si el cliente o su número está en la Lista Blanca ──────────
   const isWhitelisted = await isNumberInWhiteList(cleanIdentifier, clientInfo?.numero);
   if (isWhitelisted) {
     console.log(`[BOT] El remitente ${cleanIdentifier} (asociado: ${clientInfo?.numero || 'N/A'}) está en la Lista Blanca. Bot ignorando mensaje.`);
     return;
   }
 
-  // ── 12. Verificar si el cliente ya está en estado HUMANO ──────────────────
-  const inHumanState = await isClientInHumanState(clientId);
-
+  // ── 14. Validar si la conversación está en estado HUMANO (atención activa) ─
+  const inHumanState = await isClientInHumanState(clientId, cleanIdentifier, clientInfo?.numero);
   if (inHumanState) {
-    if (isCerrarCommand(rawText)) {
-      await updateConversationState(clientId, 'MENU_PRINCIPAL');
-      humanStateCache.delete(clientId);
-      console.log(`[BOT] Conversación con el cliente ${clientId} cerrada vía comando 'cerrar.'. Bot reactivado.`);
-      return;
-    }
-
-    // Actualizar la última interacción para renovar las 6 horas de inactividad
-    humanStateCache.set(clientId, Date.now());
-    console.log(`[BOT] Mensaje de cliente ${clientId} ignorado porque la conversación está en estado HUMANO (atención manual activa).`);
-    return;
-  }
-
-  // ── 13. Detectar comando "cerrar." o "pausar." del cliente ────────────────
-  if (isCerrarCommand(rawText)) {
-    await updateConversationState(clientId, 'MENU_PRINCIPAL');
-    humanStateCache.delete(clientId);
-    console.log('[BOT] Conversación reseteada a MENU_PRINCIPAL por comando cerrar.');
-    return;
-  }
-
-  if (isPausarCommand(rawText)) {
-    await updateConversationState(clientId, 'HUMANO');
-    humanStateCache.set(clientId, Date.now());
-    console.log('[BOT] Bot pausado manualmente para este chat por comando pausar.');
+    console.log(`[BOT] Mensaje de cliente ${cleanIdentifier} IGNORADO: chat en estado HUMANO (atención manual activa).`);
     return;
   }
 

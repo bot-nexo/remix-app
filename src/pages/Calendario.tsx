@@ -6,6 +6,7 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Lock, Clock, Alert
 import { DIAS_SEMANA } from '../arreglos';
 import { useToast } from '../contexts/ToastContext';
 import { parsearHorario } from '../functions';
+import { enviarNotificacionPlantilla } from '../services/notificacionesService';
 
 export default function Calendario() {
     const { showToast } = useToast();
@@ -130,11 +131,90 @@ export default function Calendario() {
         e.preventDefault();
         if (!diaSeleccionado || !user) return;
         setLoading(true);
-        const payload = { user_id: user.id, fecha: diaSeleccionado, bloqueo_completo: bloqueoCompleto, hora_inicio: bloqueoCompleto ? null : horaInicio, hora_fin: bloqueoCompleto ? null : horaFin, motivo: motivo || 'Bloqueo de agenda' };
-        const { error } = await supabase.from('bloqueos_agenda').insert([payload]);
-        if (error) showToast(error.message, 'error');
-        else { showToast('Día bloqueado.', 'success'); setDiaSeleccionado(null); setMotivo(''); cargarAgendaMes(); }
-        setLoading(false);
+
+        try {
+            const payload = {
+                user_id: user.id,
+                fecha: diaSeleccionado,
+                bloqueo_completo: bloqueoCompleto,
+                hora_inicio: bloqueoCompleto ? null : horaInicio,
+                hora_fin: bloqueoCompleto ? null : horaFin,
+                motivo: motivo || 'Bloqueo de agenda',
+            };
+
+            const { error } = await supabase.from('bloqueos_agenda').insert([payload]);
+            if (error) {
+                showToast(error.message, 'error');
+                setLoading(false);
+                return;
+            }
+
+            // 1. Buscar citas agendadas activas en esa fecha
+            const { data: citasExistentes } = await supabase
+                .from('citas')
+                .select('id, cliente_id, cliente_nombre, cliente_numero, fecha_inicio, hora_inicio, hora_fin, estado, servicios(nombre)')
+                .eq('user_id', user.id)
+                .eq('fecha_inicio', diaSeleccionado)
+                .not('estado', 'in', '("CANCELADA","CANCELADO_INASISTENCIA","CANCELADA_ADMIN","CANCELADO")');
+
+            let citasAfectadas: any[] = [];
+            if (citasExistentes && citasExistentes.length > 0) {
+                if (bloqueoCompleto) {
+                    citasAfectadas = citasExistentes;
+                } else {
+                    const [bHi, bMi] = horaInicio.split(':').map(Number);
+                    const [bHf, bMf] = horaFin.split(':').map(Number);
+                    const bIni = bHi * 60 + bMi;
+                    const bFin = bHf * 60 + bMf;
+
+                    citasAfectadas = citasExistentes.filter((c) => {
+                        if (!c.hora_inicio || !c.hora_fin) return false;
+                        const [cHi, cMi] = c.hora_inicio.slice(0, 5).split(':').map(Number);
+                        const [cHf, cMf] = c.hora_fin.slice(0, 5).split(':').map(Number);
+                        const cIni = cHi * 60 + cMi;
+                        const cFin = cHf * 60 + cMf;
+                        return cIni < bFin && cFin > bIni;
+                    });
+                }
+            }
+
+            // 2. Si hay citas colisionantes, cancelarlas y notificar automáticamente por WhatsApp
+            if (citasAfectadas.length > 0) {
+                const idsAfectados = citasAfectadas.map((c) => c.id);
+                await supabase
+                    .from('citas')
+                    .update({ estado: 'CANCELADA' })
+                    .in('id', idsAfectados);
+
+                for (const cita of citasAfectadas) {
+                    if (cita.cliente_numero) {
+                        try {
+                            await enviarNotificacionPlantilla('cancelacion', {
+                                nombre_cliente: cita.cliente_nombre || 'Cliente',
+                                telefono_cliente: cita.cliente_numero,
+                                servicio: (cita.servicios as any)?.nombre || 'Servicio',
+                                fecha_cita: cita.fecha_inicio,
+                                hora_cita: cita.hora_inicio?.slice(0, 5),
+                            });
+                        } catch (notifErr) {
+                            console.warn('[CALENDARIO] Error enviando notificación de cancelación:', notifErr);
+                        }
+                    }
+                }
+
+                showToast(`Bloqueo guardado. Se cancelaron y notificaron ${citasAfectadas.length} cita(s) por WhatsApp.`, 'success');
+            } else {
+                showToast(bloqueoCompleto ? 'Día bloqueado correctamente.' : 'Horario bloqueado correctamente.', 'success');
+            }
+
+            setDiaSeleccionado(null);
+            setMotivo('');
+            cargarAgendaMes();
+        } catch (err: any) {
+            showToast(err?.message || 'Error al guardar el bloqueo', 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const eliminarBloqueo = async (id: string) => {

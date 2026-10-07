@@ -211,6 +211,12 @@ export default function GestionCitas() {
             const duracion = servicios.find((s) => s.id === servicioId)?.duracion_minutos || 45;
             const slots: string[] = [];
 
+            // Detectar si la fecha seleccionada es hoy (en hora de Colombia)
+            const hoyColombiaStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
+            const esHoy = fechaStr === hoyColombiaStr;
+            const nowColombia = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }));
+            const minutosActuales = nowColombia.getHours() * 60 + nowColombia.getMinutes();
+
             let [h, m] = horaInicio.split(':').map(Number);
             const [hFin, mFin] = horaFin.split(':').map(Number);
             const finTotalMin = hFin * 60 + mFin;
@@ -220,10 +226,20 @@ export default function GestionCitas() {
                 const mm = String(m).padStart(2, '0');
                 const slotHora = `${hh}:${mm}`;
 
-                // Verificar colisión con citas agendadas
                 const inicioMin = h * 60 + m;
                 const finMin = inicioMin + duracion;
 
+                // Si es hoy y el horario ya pasó, descartar slot
+                if (esHoy && inicioMin <= minutosActuales) {
+                    m += duracion;
+                    if (m >= 60) {
+                        h += Math.floor(m / 60);
+                        m = m % 60;
+                    }
+                    continue;
+                }
+
+                // Verificar colisión con citas agendadas
                 const tieneColisionCita = (citasExistentes || []).some((c) => {
                     if (!c.hora_inicio || !c.hora_fin) return false;
                     const [cHi, cMi] = c.hora_inicio.slice(0, 5).split(':').map(Number);

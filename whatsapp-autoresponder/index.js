@@ -962,13 +962,35 @@ async function sendEvolutionMessage(to, text, preview = false) {
     },
   };
 
-  await axios.post(url, payload, {
+  const response = await axios.post(url, payload, {
     headers: {
       'Content-Type': 'application/json',
       apikey: EVOLUTION_API_KEY,
     },
     timeout: 10_000,
   });
+
+  // 1. Guardar el ID del mensaje devuelto por Evolution API para no confundirlo con intervención humana
+  const sentMsgId = response?.data?.key?.id || response?.data?.id;
+  if (sentMsgId) {
+    botSentMessageIds.add(sentMsgId);
+    if (botSentMessageIds.size > 1000) {
+      const firstItem = botSentMessageIds.values().next().value;
+      botSentMessageIds.delete(firstItem);
+    }
+  }
+
+  // 2. Guardar texto y timestamp para protección adicional
+  if (text) {
+    const trimmed = text.trim();
+    botSentTexts.set(trimmed.substring(0, 80), Date.now());
+    if (botSentTexts.size > 200) {
+      const firstKey = botSentTexts.keys().next().value;
+      botSentTexts.delete(firstKey);
+    }
+  }
+
+  return response?.data;
 }
 
 /**
@@ -1596,6 +1618,10 @@ const HUMAN_STATE_EXPIRATION_MS = 2 * 60 * 60 * 1000;
 // Mapeo en memoria de clientes que ya están en estado HUMANO (clientId => timestamp)
 const humanStateCache = new Map();
 
+// Registro en memoria de mensajes enviados por el propio bot (para no auto-silenciarse en rebotes fromMe)
+const botSentMessageIds = new Set();
+const botSentTexts = new Map();
+
 /**
  * Carga en caché los clientes que están en estado HUMANO al iniciar el servidor.
  */
@@ -1647,14 +1673,30 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
     return;
   }
 
-  // ── 3. Filtrar mensajes propios (Intervención de la Profesional) ─────────
+  // ── 3. Filtrar mensajes propios (Intervención de la Profesional vs Mensaje del Bot) ─
   const fromMe = data?.key?.fromMe === true;
 
   if (fromMe) {
+    const msgId = data?.key?.id;
     const rawText =
       data?.message?.conversation ||
       data?.message?.extendedTextMessage?.text ||
       '';
+    const trimmedText = (rawText || '').trim();
+    const snippet = trimmedText.substring(0, 80);
+
+    // Si este mensaje fue emitido por el propio bot a través de la API, IGNORAR rebote
+    if (msgId && botSentMessageIds.has(msgId)) {
+      botSentMessageIds.delete(msgId);
+      console.log(`[WEBHOOK] Mensaje saliente generado por el bot (ID: ${msgId}). Ignorando rebote.`);
+      return;
+    }
+
+    const sentAt = botSentTexts.get(snippet);
+    if (sentAt && Date.now() - sentAt < 60000) {
+      console.log('[WEBHOOK] Mensaje saliente coincide con respuesta del bot. Ignorando rebote.');
+      return;
+    }
 
     const canonicalJid = getCanonicalJid(data);
     if (canonicalJid && !canonicalJid.includes('@g.us') && !canonicalJid.includes('@newsletter')) {
@@ -1680,10 +1722,10 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
         // El profesional envió "pausar." -> pausar el bot
         await updateConversationState(clientId, 'HUMANO', cleanIdentifier);
         console.log(`[BOT] Profesional envió comando 'pausar.' para chat ${cleanIdentifier}. Bot silenciado.`);
-      } else if (rawText && rawText.trim()) {
-        // La profesional envió cualquier mensaje manual -> auto-silenciar el bot para este chat
+      } else if (trimmedText) {
+        // La profesional envió un mensaje manual desde WhatsApp -> auto-silenciar el bot
         await updateConversationState(clientId, 'HUMANO', cleanIdentifier);
-        console.log(`[BOT] Intervención de la profesional detectada en chat ${cleanIdentifier}. Bot silenciado (HUMANO).`);
+        console.log(`[BOT] Intervención manual de la profesional detectada en chat ${cleanIdentifier}. Bot silenciado (HUMANO).`);
       }
     }
     return;
@@ -2169,6 +2211,18 @@ app.listen(PORT, async () => {
   console.log(`  📋  Instancia Evolution : ${EVOLUTION_INSTANCE}`);
   console.log(`  📚  FAQs estáticas cargadas: ${config.faqs?.length ?? 0}`);
   console.log(`  ⏱️  Delay de escritura    : 2-6 segundos (aleatorio)`);
+
+  // Verificar conectividad con Supabase en tiempo real
+  try {
+    const { data: dbCheck, error: dbErr } = await supabase.from('empresa').select('id, nombre').limit(1);
+    if (dbErr) {
+      console.error(`  ❌  [BD ERROR] Fallo al consultar Supabase en tiempo real: ${dbErr.message}`);
+    } else {
+      console.log(`  ⚡  [BD OK] Supabase conectado en tiempo real (Empresa: ${dbCheck?.[0]?.nombre || 'OK'})`);
+    }
+  } catch (err) {
+    console.error(`  ❌  [BD FATAL] No se pudo comunicar con Supabase: ${err.message}`);
+  }
 
   // Cargar datos de empresa al iniciar
   await loadEmpresaData();

@@ -132,6 +132,17 @@ export default function Clientes() {
 
         if (error) throw error;
 
+        // Sincronizar estado en conversacion_estado a 'MENU_PRINCIPAL'
+        try {
+          await supabase.rpc('actualizar_o_crear_conversacion_estado', {
+            p_cliente_id: cliente.id,
+            p_telefono: cleanPhone,
+            p_nuevo_estado: 'MENU_PRINCIPAL',
+          });
+        } catch (rpcErr) {
+          console.warn('[CLIENTES] No se pudo sincronizar conversacion_estado:', rpcErr);
+        }
+
         const newSet = new Set(whiteListPhones);
         newSet.delete(cleanPhone);
         setWhiteListPhones(newSet);
@@ -147,6 +158,17 @@ export default function Clientes() {
           });
 
         if (error) throw error;
+
+        // Sincronizar estado en conversacion_estado a 'HUMANO'
+        try {
+          await supabase.rpc('actualizar_o_crear_conversacion_estado', {
+            p_cliente_id: cliente.id,
+            p_telefono: cleanPhone,
+            p_nuevo_estado: 'HUMANO',
+          });
+        } catch (rpcErr) {
+          console.warn('[CLIENTES] No se pudo sincronizar conversacion_estado:', rpcErr);
+        }
 
         const newSet = new Set(whiteListPhones);
         newSet.add(cleanPhone);

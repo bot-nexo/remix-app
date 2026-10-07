@@ -51,36 +51,60 @@ export default function ListaBlanca() {
         numero_whatsapp: numero
       });
 
-    if (!error) {
-      setNombre('');
-      setNumero('');
-      fetchContactos();
-    } else {
+      if (!error) {
+        // Sincronizar estado en conversacion_estado a 'HUMANO'
+        const cleanPhone = numero.replace(/\D/g, '');
+        try {
+          await supabase.rpc('actualizar_o_crear_conversacion_estado', {
+            p_cliente_id: null,
+            p_telefono: cleanPhone,
+            p_nuevo_estado: 'HUMANO',
+          });
+        } catch (rpcErr) {
+          console.warn('[LISTA_BLANCA] No se pudo sincronizar conversacion_estado:', rpcErr);
+        }
+
+        setNombre('');
+        setNumero('');
+        fetchContactos();
+      } else {
+        showToast('Error al agregar contacto', 'error');
+      }
+      setSubmitting(false);
+    } catch (error) {
       showToast('Error al agregar contacto', 'error');
     }
-    setSubmitting(false);
-  } catch (error) {
-    showToast('Error al agregar contacto', 'error');
-  }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, telefonoContacto?: string) => {
     if (!user) return;
     if (!window.confirm('¿Eliminar este contacto?')) return;
     
     try {
-    const { error } = await supabase
-      .from('lista_blanca')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      const { error } = await supabase
+        .from('lista_blanca')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
 
-    if (!error) {
-      setContactos(contactos.filter(c => c.id !== id));
+      if (!error) {
+        if (telefonoContacto) {
+          const cleanPhone = telefonoContacto.replace(/\D/g, '');
+          try {
+            await supabase.rpc('actualizar_o_crear_conversacion_estado', {
+              p_cliente_id: null,
+              p_telefono: cleanPhone,
+              p_nuevo_estado: 'MENU_PRINCIPAL',
+            });
+          } catch (rpcErr) {
+            console.warn('[LISTA_BLANCA] No se pudo sincronizar conversacion_estado:', rpcErr);
+          }
+        }
+        setContactos(contactos.filter(c => c.id !== id));
+      }
+    } catch (error) {
+      showToast('Error al eliminar contacto', 'error');
     }
-  } catch (error) {
-    showToast('Error al eliminar contacto', 'error');
-  }
   };
 
   //******************************** */
@@ -168,7 +192,7 @@ export default function ListaBlanca() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => handleDelete(contacto.id)}
+                        onClick={() => handleDelete(contacto.id, contacto.numero_whatsapp)}
                         className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors inline-flex items-center justify-center"
                         title="Eliminar"
                       >

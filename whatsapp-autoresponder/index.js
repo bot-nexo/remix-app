@@ -222,35 +222,47 @@ function extractCleanIdentifier(jid) {
 }
 
 /**
- * Verifica si un número telefónico o LID está en la lista blanca de la BD (contactos excluidos).
+ * Verifica si un número telefónico, LID o cliente está en la lista blanca de la BD (contactos excluidos).
  * @param {string} cleanIdentifier - Identificador de chat (LID o Teléfono).
  * @param {string} [associatedPhone] - Teléfono asociado al cliente si ya fue resuelto.
+ * @param {string} [clientId] - UUID del cliente si ya fue resuelto.
  * @returns {Promise<boolean>}
  */
-async function isNumberInWhiteList(cleanIdentifier, associatedPhone = null) {
-  if (!cleanIdentifier && !associatedPhone) return false;
+async function isNumberInWhiteList(cleanIdentifier, associatedPhone = null, clientId = null) {
+  if (!cleanIdentifier && !associatedPhone && !clientId) return false;
   try {
     const cleanId = (cleanIdentifier || '').replace(/\D/g, '');
     const cleanAssoc = (associatedPhone || '').replace(/\D/g, '');
+    const last10Id = cleanId.length >= 10 ? cleanId.slice(-10) : '';
+    const last10Assoc = cleanAssoc.length >= 10 ? cleanAssoc.slice(-10) : '';
 
     const { data, error } = await supabase
       .from('lista_blanca')
-      .select('numero_whatsapp');
+      .select('numero_whatsapp, nombre_contacto');
 
-    if (error || !data) return false;
+    if (error || !data || !Array.isArray(data)) return false;
 
     return data.some((row) => {
       const dbPhone = (row.numero_whatsapp || '').replace(/\D/g, '');
       if (!dbPhone) return false;
+      const last10Db = dbPhone.length >= 10 ? dbPhone.slice(-10) : dbPhone;
 
-      // Coincidencia directa con el identificador del chat
-      if (cleanId && (cleanId.endsWith(dbPhone) || dbPhone.endsWith(cleanId))) {
+      // 1. Coincidencia directa o por sufijos/prefijos (ej. 57300... vs 300...)
+      if (cleanId && (cleanId === dbPhone || cleanId.endsWith(dbPhone) || dbPhone.endsWith(cleanId))) {
         return true;
       }
-      // Coincidencia con el teléfono asociado del cliente
-      if (cleanAssoc && (cleanAssoc.endsWith(dbPhone) || dbPhone.endsWith(cleanAssoc))) {
+      if (last10Id && last10Db && last10Id === last10Db) {
         return true;
       }
+
+      // 2. Coincidencia con el teléfono asociado reconciliado del cliente
+      if (cleanAssoc && (cleanAssoc === dbPhone || cleanAssoc.endsWith(dbPhone) || dbPhone.endsWith(cleanAssoc))) {
+        return true;
+      }
+      if (last10Assoc && last10Db && last10Assoc === last10Db) {
+        return true;
+      }
+
       return false;
     });
   } catch (err) {
@@ -673,37 +685,7 @@ async function getPlantillasFromDB(userId = WHATSAPP_ADMIN_USER_ID) {
   }
 }
 
-/**
- * Verifica si un número o identificador está en la lista blanca (contactos excluidos)
- * @param {string} cleanIdentifier
- * @returns {Promise<boolean>}
- */
-async function isNumberInWhiteList(cleanIdentifier) {
-  if (!cleanIdentifier) return false;
-  try {
-    const cleanPhone = cleanIdentifier.replace(/\D/g, '');
-    if (!cleanPhone) return false;
 
-    const { data, error } = await supabase
-      .from('lista_blanca')
-      .select('numero_whatsapp')
-      .eq('user_id', WHATSAPP_ADMIN_USER_ID);
-
-    if (error || !data || !Array.isArray(data)) return false;
-
-    const last10 = cleanPhone.slice(-10);
-
-    return data.some((row) => {
-      const dbPhone = (row.numero_whatsapp || '').replace(/\D/g, '');
-      if (!dbPhone) return false;
-      const dbLast10 = dbPhone.slice(-10);
-      return last10 === dbLast10 || cleanPhone.endsWith(dbPhone) || dbPhone.endsWith(cleanPhone);
-    });
-  } catch (err) {
-    console.error('[BD] Error al verificar lista blanca:', err.message);
-    return false;
-  }
-}
 
 /**
  * Formatea una plantilla reemplazando variables dinámicas en Título, Cuerpo y Acción.
@@ -863,6 +845,12 @@ async function isClientInHumanState(clientId, cleanIdentifier = null, clientPhon
   const now = Date.now();
   const cleanId = (cleanIdentifier || '').replace(/\D/g, '');
   const cleanPh = (clientPhone || '').replace(/\D/g, '');
+
+  // 0. Si está en lista blanca, NUNCA expira: siempre está en atención humana / excluido del bot
+  const whitelisted = await isNumberInWhiteList(cleanId, cleanPh, clientId);
+  if (whitelisted) {
+    return true;
+  }
 
   // 1. Verificar en caché en memoria por cualquiera de las llaves asociadas
   const cachedTs = (clientId && humanStateCache.get(clientId)) ||
@@ -1677,6 +1665,13 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
       const clientInfo = await findOrCreateClient(cleanIdentifier, '', isLid);
       const clientId = clientInfo?.id || null;
 
+      // Si el contacto está en Lista Blanca, mantener exclusión absoluta
+      const isWhitelisted = await isNumberInWhiteList(cleanIdentifier, clientInfo?.numero, clientId);
+      if (isWhitelisted) {
+        console.log(`[BOT] Profesional interactuó con contacto en Lista Blanca (${cleanIdentifier}).`);
+        return;
+      }
+
       if (isCerrarCommand(rawText)) {
         // El profesional envió "cerrar." -> reactivar el bot
         await updateConversationState(clientId, 'MENU_PRINCIPAL', cleanIdentifier);
@@ -1758,7 +1753,14 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
 
   const clientId = clientInfo.id;
 
-  // ── 12. Comandos del cliente (cerrar. o pausar.) ──────────────────────────
+  // ── 12. Validar si el cliente o su número está en la Lista Blanca ──────────
+  const isWhitelisted = await isNumberInWhiteList(cleanIdentifier, clientInfo?.numero, clientId);
+  if (isWhitelisted) {
+    console.log(`[BOT] El remitente ${cleanIdentifier} (asociado: ${clientInfo?.numero || 'N/A'}, nombre: ${clientInfo?.nombre || 'N/A'}) está en la Lista Blanca. Bot ignorando mensaje.`);
+    return;
+  }
+
+  // ── 13. Comandos del cliente (cerrar. o pausar.) ──────────────────────────
   if (isCerrarCommand(rawText)) {
     await updateConversationState(clientId, 'MENU_PRINCIPAL', cleanIdentifier);
     console.log(`[BOT] Cliente envió comando 'cerrar.' para chat ${cleanIdentifier}. Bot reactivado.`);
@@ -1768,13 +1770,6 @@ app.post('/webhook/evolution', requireEvolutionWebhook, asyncRoute(async (req, r
   if (isPausarCommand(rawText)) {
     await updateConversationState(clientId, 'HUMANO', cleanIdentifier);
     console.log(`[BOT] Cliente envió comando 'pausar.' para chat ${cleanIdentifier}. Bot silenciado.`);
-    return;
-  }
-
-  // ── 13. Validar si el cliente o su número está en la Lista Blanca ──────────
-  const isWhitelisted = await isNumberInWhiteList(cleanIdentifier, clientInfo?.numero);
-  if (isWhitelisted) {
-    console.log(`[BOT] El remitente ${cleanIdentifier} (asociado: ${clientInfo?.numero || 'N/A'}) está en la Lista Blanca. Bot ignorando mensaje.`);
     return;
   }
 

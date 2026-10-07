@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   MessageSquareText,
   Save,
@@ -6,20 +6,13 @@ import {
   Sparkles,
   Send,
   Smartphone,
-  CheckCircle2,
-  Info,
-  Layers,
   Copy,
   Check,
   Type,
   AlignLeft,
   MousePointerClick,
   Eye,
-  Sliders,
-  Bot,
-  UserCheck,
-  Clock,
-  Terminal,
+  Sliders
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';

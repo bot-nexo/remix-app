@@ -4,8 +4,9 @@ export type TipoPlantillaWhatsapp =
   | 'confirmacion'
   | 'recordatorio'
   | 'cancelacion'
-  | 'seguimiento'
-  | 'promocion';
+  //| 'seguimiento'
+  // | 'promocion'
+  ;
 
 export interface PlantillaWhatsapp {
   id: TipoPlantillaWhatsapp;
@@ -58,26 +59,26 @@ export const PLANTILLAS_POR_DEFECTO: Record<TipoPlantillaWhatsapp, PlantillaWhat
     accion: 'Si deseas agendar un nuevo espacio, puedes volver a reservar aquí: {link_reserva}',
     activa: true,
   },
-  seguimiento: {
-    id: 'seguimiento',
-    nombre: 'Seguimiento Post-Servicio',
-    descripcion: 'Enviado después de la cita para valorar la experiencia.',
-    titulo: '💜 ¡GRACIAS POR TU VISITA!',
-    cuerpo:
-      'Hola {nombre_cliente}, esperamos que hayas quedado feliz con tu servicio de {servicio} en {nombre_empresa}.\n\nPara nosotros tu opinión es extremadamente valiosa.',
-    accion: 'Cuéntanos del 1 al 5 qué tal te pareció la atención hoy. ¡Que tengas un día radiante! 🌟',
-    activa: true,
-  },
-  promocion: {
-    id: 'promocion',
-    nombre: 'Mensaje Promocional / Difusión',
-    descripcion: 'Plantilla personalizable para novedades u ofertas especiales.',
-    titulo: '🎉 ¡TENEMOS UNA SORPRESA PARA TI!',
-    cuerpo:
-      'Hola {nombre_cliente}, queremos invitarte a conocer nuestras nuevas tendencias y promociones exclusivas del mes en {nombre_empresa}.',
-    accion: '¡Agenda hoy mismo tu cita con descuento aquí! 👉 {link_reserva}',
-    activa: true,
-  },
+  // seguimiento: {
+  //   id: 'seguimiento',
+  //   nombre: 'Seguimiento Post-Servicio',
+  //   descripcion: 'Enviado después de la cita para valorar la experiencia.',
+  //   titulo: '💜 ¡GRACIAS POR TU VISITA!',
+  //   cuerpo:
+  //     'Hola {nombre_cliente}, esperamos que hayas quedado feliz con tu servicio de {servicio} en {nombre_empresa}.\n\nPara nosotros tu opinión es extremadamente valiosa.',
+  //   accion: 'Cuéntanos del 1 al 5 qué tal te pareció la atención hoy. ¡Que tengas un día radiante! 🌟',
+  //   activa: true,
+  // },
+  // promocion: {
+  //   id: 'promocion',
+  //   nombre: 'Mensaje Promocional / Difusión',
+  //   descripcion: 'Plantilla personalizable para novedades u ofertas especiales.',
+  //   titulo: '🎉 ¡TENEMOS UNA SORPRESA PARA TI!',
+  //   cuerpo:
+  //     'Hola {nombre_cliente}, queremos invitarte a conocer nuestras nuevas tendencias y promociones exclusivas del mes en {nombre_empresa}.',
+  //   accion: '¡Agenda hoy mismo tu cita con descuento aquí! 👉 {link_reserva}',
+  //   activa: true,
+  // },
 };
 
 const CLAVE_CONFIGURACION = 'wa_plantillas_mensajes_v1';

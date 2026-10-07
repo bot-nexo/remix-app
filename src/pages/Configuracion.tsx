@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { useModules } from '../contexts/ModuleContext';
 import { supabase } from '../lib/supabase';
+import ConfirmModal from '../components/ConfirmModal';
 import {
     createInstance,
     fetchInstances,
@@ -38,6 +39,7 @@ export default function Configuracion() {
   const [metaVentas, setMetaVentas] = useState('1000000');
   const [metaVentasActual, setMetaVentasActual] = useState('0');
   const [telefonoProfesional, setTelefonoProfesional] = useState('');
+  const [modalDesconectarOpen, setModalDesconectarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -245,8 +247,7 @@ export default function Configuracion() {
     }
   };
 
-  const handleDisconnect = async () => {
-    if (!confirm('¿Desconectar WhatsApp? Se perderá la sesión actual.')) return;
+  const handleConfirmarDesconexion = async () => {
     setWaLoading(true);
     stopPolling();
     stopQRCountdown();
@@ -254,7 +255,8 @@ export default function Configuracion() {
       await logoutInstance();
       setQrBase64(null);
       setWaStatus('disconnected');
-      showToast('WhatsApp desconectado.', 'success');
+      showToast('WhatsApp desconectado correctamente.', 'success');
+      setModalDesconectarOpen(false);
     } catch (err: any) {
       showToast('Error al desconectar: ' + err.message, 'error');
     } finally {
@@ -435,7 +437,7 @@ export default function Configuracion() {
                   </div>
                   <button
                     type="button"
-                    onClick={handleDisconnect}
+                    onClick={() => setModalDesconectarOpen(true)}
                     disabled={waLoading}
                     className="flex items-center gap-2 px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/20 dark:hover:bg-red-950/40 dark:text-red-400 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
                   >
@@ -497,7 +499,7 @@ export default function Configuracion() {
       {isModuleEnabled('cambiar-password') ? (
         <div className="bg-white dark:bg-[#0f172a] rounded-2xl border border-slate-200/80 dark:border-slate-800/60 p-6 space-y-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-500/10 text-indigo-600 rounded-xl">
+            <div className="p-2.5 bg-brand-primary/10 text-brand-primary rounded-xl">
               <KeyRound size={22} />
             </div>
             <div>
@@ -545,7 +547,7 @@ export default function Configuracion() {
                     placeholder="Mínimo 6 caracteres"
                     required
                     minLength={6}
-                    className="w-full px-4 py-2.5 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all pr-10"
+                    className="w-full px-4 py-2.5 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all pr-10"
                   />
                   <button
                     type="button"
@@ -568,7 +570,7 @@ export default function Configuracion() {
                   placeholder="Repite la contraseña"
                   required
                   minLength={6}
-                  className="w-full px-4 py-2.5 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+                  className="w-full px-4 py-2.5 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary transition-all"
                 />
               </div>
             </div>
@@ -577,7 +579,7 @@ export default function Configuracion() {
               <button
                 type="submit"
                 disabled={updatingPassword}
-                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-indigo-600/15 disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 bg-brand-primary hover:bg-brand-secondary text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-brand-primary/15 disabled:opacity-50"
               >
                 <Lock size={16} />
                 {updatingPassword ? 'Actualizando Contraseña...' : 'Actualizar Contraseña'}
@@ -591,6 +593,19 @@ export default function Configuracion() {
           <span>El cambio de contraseña ha sido deshabilitado por el SuperAdmin.</span>
         </div>
       )}
+
+      {/* Modal Confirmación Desconectar WhatsApp */}
+      <ConfirmModal
+        isOpen={modalDesconectarOpen}
+        onClose={() => setModalDesconectarOpen(false)}
+        onConfirm={handleConfirmarDesconexion}
+        title="Desconectar WhatsApp"
+        message="¿Estás seguro de que deseas desconectar WhatsApp? Se cerrará la sesión actual y el autorespondedor no podrá recibir ni responder mensajes hasta que vuelvas a vincular el código QR."
+        confirmText="Desconectar Sesión"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={waLoading}
+      />
     </div>
   );
 }

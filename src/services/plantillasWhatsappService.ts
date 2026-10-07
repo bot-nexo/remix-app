@@ -51,12 +51,12 @@ export const PLANTILLAS_POR_DEFECTO: Record<TipoPlantillaWhatsapp, PlantillaWhat
   },
   cancelacion: {
     id: 'cancelacion',
-    nombre: 'Cancelación de Cita',
-    descripcion: 'Notificación de cancelación de una reserva.',
-    titulo: '❌ CITA CANCELADA',
+    nombre: 'Cancelación por la Profesional',
+    descripcion: 'Enviado automáticamente cuando la profesional cancela una cita o bloquea su agenda.',
+    titulo: '❌ CANCELACIÓN DE CITA - ANGEL NAILS',
     cuerpo:
-      'Hola {nombre_cliente}, confirmamos que tu cita para el servicio de {servicio} programada el {fecha_cita} a las {hora_cita} ha sido cancelada.',
-    accion: 'Si deseas agendar un nuevo espacio, puedes volver a reservar aquí: {link_reserva}',
+      'Hola {nombre_cliente}, te informamos que lamentablemente tu cita para {servicio} programada para el {fecha_cita} a las {hora_cita} ha sido cancelada por motivos de fuerza mayor / agenda.',
+    accion: 'Te ofrecemos disculpas por el inconveniente. Puedes reagendar tu cita en cualquier otro horario disponible aquí: {link_reserva}',
     activa: true,
   },
   // seguimiento: {

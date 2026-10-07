@@ -206,12 +206,12 @@ export default function Empresa() {
                 <h2 className="mt-2 text-lg font-bold text-slate-900 dark:text-white">Elige tu atmósfera</h2>
                 <p className="mt-1 max-w-lg text-xs leading-relaxed text-slate-500 dark:text-slate-400">Estos colores aparecerán en tu panel y en la experiencia de reservas de tus clientes.</p>
               </div>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#c96f8d]/10 text-[#c96f8d]"><Droplets size={18} /></div>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary"><Droplets size={18} /></div>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
               {ANGEL_PALETTES.map((palette) => {
-                const selected = colorPrimario.toUpperCase() === palette.primary && colorSecundario.toUpperCase() === palette.secondary;
+                const selected = colorPrimario.toUpperCase() === palette.primary.toUpperCase() && colorSecundario.toUpperCase() === palette.secondary.toUpperCase();
                 return (
                   <button
                     key={palette.name}
@@ -235,7 +235,7 @@ export default function Empresa() {
               <div className="grid grid-cols-3 gap-2 p-3">
                 <span className="h-7 rounded-lg" style={{ backgroundColor: colorPrimario }} />
                 <span className="h-7 rounded-lg" style={{ backgroundColor: colorSecundario }} />
-                <span className="h-7 rounded-lg border border-slate-200 bg-[#f7e4e8] dark:border-slate-700" />
+                <span className="h-7 rounded-lg border border-slate-200 bg-brand-primary/15 dark:border-slate-700" />
               </div>
             </div>
           </div>

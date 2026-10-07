@@ -1,6 +1,7 @@
 import { cancelarCita, Citas, obtenerActivas } from "@/src/services/misCitas";
 import { AlertTriangle, Calendar, CalendarOff, ChevronDown, Clock, HandHeart, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useToast } from '../../contexts/ToastContext';
 import { getBookingErrorMessage } from "../../services/bookingApi";
 import BackButton from "../ui/BackButton";
@@ -202,9 +203,9 @@ export default function PasoCancelarCita({ onVolver, idCliente, bookingToken }: 
             )}
 
             {/* Modal de Confirmación de Cancelación */}
-            {citaAEliminar && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-                    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 max-w-xs w-full space-y-4 shadow-xl">
+            {citaAEliminar && createPortal(
+                <div className="fixed inset-0 z-[9999] min-h-screen w-screen flex items-start justify-center p-4 pt-10 md:pt-16 overflow-y-auto bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5 max-w-xs w-full space-y-4 shadow-xl my-auto sm:my-0">
                         <div className="flex items-center gap-3 text-rose-400">
                             <div className="p-2 bg-rose-500/10 rounded-xl">
                                 <AlertTriangle className="w-6 h-6" />
@@ -244,7 +245,8 @@ export default function PasoCancelarCita({ onVolver, idCliente, bookingToken }: 
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </section>
     );

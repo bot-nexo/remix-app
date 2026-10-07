@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Users,
   Search,
@@ -25,6 +26,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Cliente, Cita } from '../types/types';
+import ConfirmModal from '../components/ConfirmModal';
 import {
   obtenerClientesPaginados,
   crearCliente,
@@ -43,6 +45,8 @@ export default function Clientes() {
   const [paginaActual, setPaginaActual] = useState(1);
   const [limitePorPagina, setLimitePorPagina] = useState(10);
   const [totalPaginas, setTotalPaginas] = useState(1);
+  const [clienteAEliminar, setClienteAEliminar] = useState<{ id: string; nombre: string } | null>(null);
+  const [eliminandoCliente, setEliminandoCliente] = useState(false);
 
   // Filtros
   const [busqueda, setBusqueda] = useState('');
@@ -103,14 +107,15 @@ export default function Clientes() {
   }, [user]);
 
   const handleToggleListaBlanca = async (cliente: Cliente) => {
-    if (!cliente.numero) {
-      showToast('Este cliente no tiene un teléfono registrado.', 'error');
+    const rawContacto = (cliente.numero || cliente.lid || '').trim();
+    if (!rawContacto) {
+      showToast('Este cliente no tiene teléfono ni identificador de WhatsApp registrado.', 'error');
       return;
     }
 
-    const cleanPhone = cliente.numero.replace(/\D/g, '');
-    const isCurrentlyWhitelisted = Array.from(whiteListPhones).some(
-      (p) => p.endsWith(cleanPhone) || cleanPhone.endsWith(p)
+    const cleanId = rawContacto.replace(/\D/g, '');
+    const isCurrentlyWhitelisted = cleanId && Array.from(whiteListPhones).some(
+      (p) => p.endsWith(cleanId) || cleanId.endsWith(p) || p === cleanId
     );
 
     try {
@@ -128,7 +133,7 @@ export default function Clientes() {
           .from('lista_blanca')
           .delete()
           .eq('user_id', currentUserId)
-          .ilike('numero_whatsapp', `%${cleanPhone}%`);
+          .ilike('numero_whatsapp', `%${cleanId}%`);
 
         if (error) throw error;
 
@@ -136,7 +141,7 @@ export default function Clientes() {
         try {
           await supabase.rpc('actualizar_o_crear_conversacion_estado', {
             p_cliente_id: cliente.id,
-            p_telefono: cleanPhone,
+            p_telefono: cleanId,
             p_nuevo_estado: 'MENU_PRINCIPAL',
           });
         } catch (rpcErr) {
@@ -144,7 +149,7 @@ export default function Clientes() {
         }
 
         const newSet = new Set(whiteListPhones);
-        newSet.delete(cleanPhone);
+        newSet.delete(cleanId);
         setWhiteListPhones(newSet);
         showToast(`"${cliente.nombre}" removido(a) de la Lista Blanca. El bot volverá a responderle.`, 'warning');
       } else {
@@ -154,7 +159,7 @@ export default function Clientes() {
           .insert({
             user_id: currentUserId,
             nombre_contacto: cliente.nombre,
-            numero_whatsapp: cliente.numero,
+            numero_whatsapp: rawContacto,
           });
 
         if (error) throw error;
@@ -163,7 +168,7 @@ export default function Clientes() {
         try {
           await supabase.rpc('actualizar_o_crear_conversacion_estado', {
             p_cliente_id: cliente.id,
-            p_telefono: cleanPhone,
+            p_telefono: cleanId,
             p_nuevo_estado: 'HUMANO',
           });
         } catch (rpcErr) {
@@ -171,7 +176,7 @@ export default function Clientes() {
         }
 
         const newSet = new Set(whiteListPhones);
-        newSet.add(cleanPhone);
+        newSet.add(cleanId);
         setWhiteListPhones(newSet);
         showToast(`¡"${cliente.nombre}" agregado(a) a la Lista Blanca! El bot lo ignorará siempre (Contacto Excluido).`, 'success');
       }
@@ -238,6 +243,43 @@ export default function Clientes() {
 
     setGuardandoForm(true);
     try {
+      const cleanDigits = numeroForm.replace(/\D/g, '');
+      const last10 = cleanDigits.slice(-10);
+      const norm57 = last10.length === 10 ? `57${last10}` : cleanDigits;
+
+      // Validación global y estricta de teléfono duplicado
+      if (cleanDigits.length >= 7) {
+        const { data: todosClientes } = await supabase
+          .from('clientes')
+          .select('id, nombre, numero, lid');
+
+        if (todosClientes) {
+          const duplicado = todosClientes.find((cl) => {
+            if (clienteEditando && cl.id === clienteEditando.id) return false;
+            const clDigits = (cl.numero || '').replace(/\D/g, '');
+            if (!clDigits || clDigits.length < 7) return false;
+            return (
+              clDigits === cleanDigits ||
+              clDigits === norm57 ||
+              cleanDigits === clDigits ||
+              (last10.length >= 7 && clDigits.endsWith(last10)) ||
+              (clDigits.length >= 7 && cleanDigits.endsWith(clDigits.slice(-10)))
+            );
+          });
+
+          if (duplicado) {
+            showToast(
+              clienteEditando
+                ? `⚠️ Este número ya pertenece a otro cliente registrado: "${duplicado.nombre}". No puedes asignarlo.`
+                : `❌ Ya existe un cliente registrado con este número: "${duplicado.nombre}". No se puede registrar un duplicado.`,
+              'error'
+            );
+            setGuardandoForm(false);
+            return;
+          }
+        }
+      }
+
       if (clienteEditando) {
         await actualizarCliente(clienteEditando.id, {
           nombre: nombreForm,
@@ -260,15 +302,19 @@ export default function Clientes() {
     }
   };
 
-  const handleEliminarCliente = async (id: string, nombre: string) => {
-    if (!window.confirm(`¿Estás seguro de eliminar a ${nombre}?`)) return;
+  const handleConfirmarEliminar = async () => {
+    if (!clienteAEliminar) return;
 
+    setEliminandoCliente(true);
     try {
-      await eliminarCliente(id);
-      showToast('Cliente eliminado de la base de datos.', 'success');
+      await eliminarCliente(clienteAEliminar.id);
+      showToast(`Cliente "${clienteAEliminar.nombre}" eliminado correctamente.`, 'success');
+      setClienteAEliminar(null);
       cargarClientes();
     } catch (err: any) {
       showToast(err.message || 'Error al eliminar cliente.', 'error');
+    } finally {
+      setEliminandoCliente(false);
     }
   };
 
@@ -402,39 +448,39 @@ export default function Clientes() {
           {/* Selector Ordenamiento y Límite */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
             {/* Orden */}
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300">
-              <Filter size={14} className="text-slate-400" />
-              <span>Orden:</span>
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300 shadow-xs">
+              <Filter size={14} className="text-slate-400 shrink-0" />
+              <span className="text-slate-500 dark:text-slate-400">Orden:</span>
               <select
                 value={orden}
                 onChange={(e) => {
                   setOrden(e.target.value as any);
                   setPaginaActual(1);
                 }}
-                className="bg-transparent font-semibold text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer pr-1"
               >
-                <option value="reciente">Más Recientes</option>
-                <option value="antiguo">Más Antiguos</option>
-                <option value="nombre_asc">Nombre A-Z</option>
-                <option value="nombre_desc">Nombre Z-A</option>
+                <option value="reciente" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">Más Recientes</option>
+                <option value="antiguo" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">Más Antiguos</option>
+                <option value="nombre_asc" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">Nombre A-Z</option>
+                <option value="nombre_desc" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">Nombre Z-A</option>
               </select>
             </div>
 
             {/* Elementos por página */}
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300">
-              <span>Mostrar:</span>
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300 shadow-xs">
+              <span className="text-slate-500 dark:text-slate-400">Mostrar:</span>
               <select
                 value={limitePorPagina}
                 onChange={(e) => {
                   setLimitePorPagina(Number(e.target.value));
                   setPaginaActual(1);
                 }}
-                className="bg-transparent font-semibold text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer pr-1"
               >
-                <option value={5}>5 por pág.</option>
-                <option value={10}>10 por pág.</option>
-                <option value={25}>25 por pág.</option>
-                <option value={50}>50 por pág.</option>
+                <option value={5} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">5 por pág.</option>
+                <option value={10} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">10 por pág.</option>
+                <option value={25} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">25 por pág.</option>
+                <option value={50} className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100">50 por pág.</option>
               </select>
             </div>
 
@@ -491,15 +537,16 @@ export default function Clientes() {
                   const initial = c.nombre ? c.nombre.charAt(0).toUpperCase() : '?';
                   const fechaReg = c.created_at
                     ? new Date(c.created_at).toLocaleDateString('es-CO', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                      })
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })
                     : 'N/A';
 
-                  const cleanPhone = c.numero ? c.numero.replace(/\D/g, '') : '';
-                  const isWhitelisted = cleanPhone && Array.from(whiteListPhones).some(
-                    (p) => p.endsWith(cleanPhone) || cleanPhone.endsWith(p)
+                  const rawContacto = (c.numero || c.lid || '').trim();
+                  const cleanIdentifier = rawContacto.replace(/\D/g, '');
+                  const isWhitelisted = cleanIdentifier && Array.from(whiteListPhones).some(
+                    (p) => p.endsWith(cleanIdentifier) || cleanIdentifier.endsWith(p) || p === cleanIdentifier
                   );
 
                   return (
@@ -507,7 +554,7 @@ export default function Clientes() {
                       {/* Cliente (Nombre + Avatar) */}
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-primary to-indigo-600 text-white font-bold flex items-center justify-center shadow-sm shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary text-white font-bold flex items-center justify-center shadow-sm shrink-0">
                             {initial}
                           </div>
                           <div>
@@ -528,6 +575,11 @@ export default function Clientes() {
                             <Phone size={13} />
                             <span>{c.numero}</span>
                           </div>
+                        ) : c.lid ? (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700" title="WhatsApp Meta LID">
+                            <Phone size={13} className="text-slate-400" />
+                            <span className="text-[11px]">LID: {c.lid.slice(-8)}</span>
+                          </div>
                         ) : (
                           <span className="text-slate-400 dark:text-slate-600 italic text-xs">Sin registrar</span>
                         )}
@@ -535,15 +587,14 @@ export default function Clientes() {
 
                       {/* Exclusión Bot (Lista Blanca) */}
                       <td className="py-4 px-4">
-                        {c.numero ? (
+                        {cleanIdentifier ? (
                           <button
                             type="button"
                             onClick={() => handleToggleListaBlanca(c)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
-                              isWhitelisted
-                                ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 shadow-xs'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/40'
-                            }`}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${isWhitelisted
+                              ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 hover:bg-amber-200 shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/40'
+                              }`}
                             title={isWhitelisted ? 'Contacto Excluido del bot (Familiar/Amigo). El bot lo ignora. Haz clic para reactivar el bot.' : 'Haz clic para incluir en la Lista Blanca e ignorar con el bot (Esposo, hijos, padres, etc.)'}
                           >
                             {isWhitelisted ? (
@@ -602,7 +653,7 @@ export default function Clientes() {
                             <Edit2 size={17} />
                           </button>
                           <button
-                            onClick={() => handleEliminarCliente(c.id, c.nombre)}
+                            onClick={() => setClienteAEliminar({ id: c.id, nombre: c.nombre })}
                             title="Eliminar cliente"
                             className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/60 rounded-xl transition-colors"
                           >
@@ -650,11 +701,10 @@ export default function Clientes() {
                       )}
                       <button
                         onClick={() => setPaginaActual(num)}
-                        className={`min-w-[34px] h-[34px] px-2.5 rounded-xl text-xs font-bold transition-all ${
-                          paginaActual === num
-                            ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/20'
-                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                        }`}
+                        className={`min-w-[34px] h-[34px] px-2.5 rounded-xl text-xs font-bold transition-all ${paginaActual === num
+                          ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/20'
+                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                          }`}
                       >
                         {num}
                       </button>
@@ -676,9 +726,9 @@ export default function Clientes() {
       </div>
 
       {/* Modal Crear / Editar Cliente */}
-      {modalClienteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5">
+      {modalClienteOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center p-4 pt-10 md:pt-16 overflow-y-auto bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5 my-auto sm:my-0">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                 {clienteEditando ? 'Editar Datos de Cliente' : 'Registrar Nuevo Cliente'}
@@ -740,13 +790,14 @@ export default function Clientes() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal Historial de Citas del Cliente */}
-      {modalHistorialOpen && clienteSeleccionado && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+      {modalHistorialOpen && clienteSeleccionado && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center p-4 pt-10 md:pt-16 overflow-y-auto bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-xl w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 max-h-[85vh] flex flex-col my-auto sm:my-0">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -797,13 +848,12 @@ export default function Clientes() {
                     </div>
 
                     <span
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
-                        cita.estado === 'COMPLETADA'
-                          ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
-                          : cita.estado === 'CANCELADA'
+                      className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${cita.estado === 'COMPLETADA'
+                        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400'
+                        : cita.estado === 'CANCELADA'
                           ? 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400'
                           : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400'
-                      }`}
+                        }`}
                     >
                       {cita.estado}
                     </span>
@@ -812,13 +862,14 @@ export default function Clientes() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal Redactar WhatsApp */}
-      {modalWaOpen && clienteSeleccionado && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+      {modalWaOpen && clienteSeleccionado && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center p-4 pt-10 md:pt-16 overflow-y-auto bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 my-auto sm:my-0">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm">
                 <MessageSquare size={18} />
@@ -862,8 +913,22 @@ export default function Clientes() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
+
+      {/* Modal de Confirmación para Eliminar Cliente */}
+      <ConfirmModal
+        isOpen={Boolean(clienteAEliminar)}
+        onClose={() => setClienteAEliminar(null)}
+        onConfirm={handleConfirmarEliminar}
+        title="Eliminar Cliente"
+        message={`¿Estás seguro de que deseas eliminar permanentemente a "${clienteAEliminar?.nombre}" del sistema? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar Cliente"
+        cancelText="Conservar"
+        variant="danger"
+        loading={eliminandoCliente}
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, MessageSquare, Bot, Clock, UserCheck, Terminal, ShieldCheck, Sparkles, AlertCircle } from 'lucide-react';
 
 interface WhatsAppHelpModalProps {
@@ -9,10 +10,10 @@ interface WhatsAppHelpModalProps {
 export default function WhatsAppHelpModal({ isOpen, onClose }: WhatsAppHelpModalProps) {
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] min-h-screen w-screen flex items-start justify-center p-4 pt-10 md:pt-16 overflow-y-auto bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-2xl bg-white dark:bg-[#0f172a] rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden"
+        className="relative w-full max-w-2xl bg-white dark:bg-[#0f172a] rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden my-auto sm:my-0"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -141,6 +142,7 @@ export default function WhatsAppHelpModal({ isOpen, onClose }: WhatsAppHelpModal
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

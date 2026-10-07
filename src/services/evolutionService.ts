@@ -130,11 +130,18 @@ export async function getConnectionState(): Promise<ConnectionState> {
  * Obtener información de las instancias.
  */
 export async function fetchInstances(): Promise<InstanceInfo[]> {
-  const data = await apiFetch<FetchInstancesResponse>(
-    '/instances',
-    { method: 'GET' }
-  );
-  return data.instances || [];
+  try {
+    const data = await apiFetch<any>(
+      '/instances',
+      { method: 'GET' }
+    );
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.instances)) return data.instances;
+    return [];
+  } catch (err) {
+    console.warn('[EVOLUTION SERVICE] No se pudieron obtener instancias de WhatsApp en este momento.');
+    return [];
+  }
 }
 
 /**

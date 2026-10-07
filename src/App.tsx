@@ -19,6 +19,7 @@ import GestionCitas from './pages/GestionCitas';
 import BookingPage from './pages/BookingPage';
 import Clientes from './pages/Clientes';
 import PlantillasWhatsapp from './pages/PlantillasWhatsapp';
+import Informes from './pages/Informes';
 import SuperAdmin from './pages/SuperAdmin';
 import { ToastProvider } from './contexts/ToastContext';
 
@@ -35,13 +36,14 @@ export default function App() {
                 <Route element={<DashboardLayout />}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/gestion-citas" element={<GestionCitas />} />
+                  <Route path="/calendario" element={<Calendario />} />
                   <Route path="/clientes" element={<Clientes />} />
+                  <Route path="/informes" element={<Informes />} />
                   <Route path="/mensajes-whatsapp" element={<PlantillasWhatsapp />} />
                   <Route path="/lista-blanca" element={<Navigate to="/clientes" replace />} />
                   <Route path="/servicios" element={<Servicios />} />
                   <Route path="/empresa" element={<Empresa />} />
                   <Route path="/config" element={<Configuracion />} />
-                  <Route path="/calendario" element={<Calendario />} />
                   <Route path="/superadmin" element={<SuperAdmin />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />

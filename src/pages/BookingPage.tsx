@@ -203,6 +203,8 @@ export default function BookingPage() {
   } as const;
 
   const cssVars = {
+    '--color-primary': colorPrimario,
+    '--color-secondary': colorSecundario,
     '--brand-primary': colorPrimario,
     '--brand-secondary': colorSecundario,
     '--brand-blush': palette.blush,

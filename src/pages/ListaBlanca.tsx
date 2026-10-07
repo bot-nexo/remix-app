@@ -3,16 +3,19 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { ShieldAlert, Trash2, Plus } from 'lucide-react';
 import { Contacto } from '../types/types';
-import {useToast} from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function ListaBlanca() {
   const { user } = useAuth();
-  const {showToast} = useToast();
+  const { showToast } = useToast();
   const [contactos, setContactos] = useState<Contacto[]>([]);
   const [nombre, setNombre] = useState('');
   const [numero, setNumero] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [contactoAEliminar, setContactoAEliminar] = useState<{ id: string; nombre: string; telefono?: string } | null>(null);
+  const [eliminando, setEliminando] = useState(false);
 
   //******************************** */
   useEffect(() => {
@@ -76,20 +79,20 @@ export default function ListaBlanca() {
     }
   };
 
-  const handleDelete = async (id: string, telefonoContacto?: string) => {
-    if (!user) return;
-    if (!window.confirm('¿Eliminar este contacto?')) return;
-    
+  const handleConfirmarEliminar = async () => {
+    if (!user || !contactoAEliminar) return;
+
+    setEliminando(true);
     try {
       const { error } = await supabase
         .from('lista_blanca')
         .delete()
-        .eq('id', id)
+        .eq('id', contactoAEliminar.id)
         .eq('user_id', user.id);
 
       if (!error) {
-        if (telefonoContacto) {
-          const cleanPhone = telefonoContacto.replace(/\D/g, '');
+        if (contactoAEliminar.telefono) {
+          const cleanPhone = contactoAEliminar.telefono.replace(/\D/g, '');
           try {
             await supabase.rpc('actualizar_o_crear_conversacion_estado', {
               p_cliente_id: null,
@@ -100,10 +103,14 @@ export default function ListaBlanca() {
             console.warn('[LISTA_BLANCA] No se pudo sincronizar conversacion_estado:', rpcErr);
           }
         }
-        setContactos(contactos.filter(c => c.id !== id));
+        setContactos(contactos.filter((c) => c.id !== contactoAEliminar.id));
+        showToast(`Contacto "${contactoAEliminar.nombre}" eliminado de la lista blanca.`, 'success');
+        setContactoAEliminar(null);
       }
     } catch (error) {
       showToast('Error al eliminar contacto', 'error');
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -192,7 +199,7 @@ export default function ListaBlanca() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => handleDelete(contacto.id, contacto.numero_whatsapp)}
+                        onClick={() => setContactoAEliminar({ id: contacto.id, nombre: contacto.nombre_contacto, telefono: contacto.numero_whatsapp })}
                         className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors inline-flex items-center justify-center"
                         title="Eliminar"
                       >
@@ -206,6 +213,18 @@ export default function ListaBlanca() {
           </table>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={Boolean(contactoAEliminar)}
+        onClose={() => setContactoAEliminar(null)}
+        onConfirm={handleConfirmarEliminar}
+        title="Eliminar de Lista Blanca"
+        message={`¿Deseas remover a "${contactoAEliminar?.nombre}" de la Lista Blanca? El bot de WhatsApp volverá a responderle normalmente.`}
+        confirmText="Sí, Remover"
+        cancelText="Conservar"
+        variant="warning"
+        loading={eliminando}
+      />
     </div>
   );
 }

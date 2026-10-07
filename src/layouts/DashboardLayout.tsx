@@ -4,6 +4,7 @@ import {
   CalendarHeart,
   ChevronLeft,
   ChevronRight,
+  FileText,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -51,6 +52,7 @@ export default function DashboardLayout() {
     { id: 'calendario', name: 'Calendario', href: '/calendario', icon: CalendarHeart },
     { id: 'gestion-citas', name: 'Gestión de Citas', href: '/gestion-citas', icon: CalendarClock },
     { id: 'clientes', name: 'Clientes & Exclusiones', href: '/clientes', icon: Users },
+    { id: 'informes', name: 'Informes & Reportes', href: '/informes', icon: FileText },
     { id: 'mensajes-whatsapp', name: 'Personaliz. Mensajes', href: '/mensajes-whatsapp', icon: MessageSquareText },
     { id: 'servicios', name: 'Servicios', href: '/servicios', icon: Tags },
     { id: 'empresa', name: 'Empresa', href: '/empresa', icon: Building2 },
@@ -61,7 +63,7 @@ export default function DashboardLayout() {
   // Filter modules according to active status and single SuperAdmin rule
   const visibleNavigation = allNavigation.filter(item => {
     if (item.id === 'superadmin') return userIsSuper;
-    if (item.id === 'configuracion') return true;
+    if (item.id === 'configuracion' || item.id === 'informes') return true;
     return isModuleEnabled(item.id);
   });
 

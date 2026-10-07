@@ -1,5 +1,6 @@
 import { Phone, User, ArrowRight } from 'lucide-react';
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Props {
   onIdentificar: (telefono: string, nombre: string) => Promise<void>;
@@ -30,9 +31,9 @@ export default function ModalIdentificacionCliente({ onIdentificar, colorPrimari
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#161019] p-6 shadow-2xl">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] min-h-screen w-screen flex items-start justify-center p-4 pt-10 md:pt-16 overflow-y-auto bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#161019] p-6 shadow-2xl my-auto sm:my-0">
         <div className="text-center">
           <div
             className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg"
@@ -112,6 +113,7 @@ export default function ModalIdentificacionCliente({ onIdentificar, colorPrimari
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

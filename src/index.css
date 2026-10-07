@@ -2,13 +2,13 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-brand-primary: var(--color-primary, #C96F8D);
-  --color-brand-secondary: var(--color-secondary, #7B3F54);
+  --color-brand-primary: var(--color-primary, #CBB295);
+  --color-brand-secondary: var(--color-secondary, #8E6C4C);
 }
 
 :root {
-  --color-primary: #C96F8D;
-  --color-secondary: #7B3F54;
+  --color-primary: #CBB295;
+  --color-secondary: #8E6C4C;
 }
 
 body {
@@ -21,12 +21,12 @@ body {
 }
 
 .admin-content {
-  animation: admin-enter 420ms ease-out both;
+  animation: admin-enter 300ms ease-out both;
 }
 
 @keyframes admin-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .booking-surface {

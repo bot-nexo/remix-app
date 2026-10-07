@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Calendar, Clock, UserCheck, CheckCircle2, XCircle, AlertCircle, X, Plus, Send, Phone, User, Sparkles, Search, Check } from 'lucide-react';
 import { Cita, FiltroRango, Servicio, Cliente } from '../types/types';
+import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from '../contexts/ToastContext';
 import { obtenerServiciosActivos } from '../services/serviciosService';
 import { crearCliente } from '../services/clientesService';
@@ -15,6 +17,7 @@ export default function GestionCitas() {
     const [servicios, setServicios] = useState<Servicio[]>([]);
     const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [citaACancelar, setCitaACancelar] = useState<{ id: string; nuevoEstado: string; clienteNombre: string; cita: Cita } | null>(null);
 
     // Filtro activo y paginación
     const [filtroRango, setFiltroRango] = useState<FiltroRango>('todas');
@@ -284,12 +287,28 @@ export default function GestionCitas() {
     const handleCambiarEstado = async (citaId: string, nuevoEstado: string) => {
         const citaObjetivo = citas.find((c) => c.id === citaId);
         const hoyLocal = new Date().toLocaleDateString('en-CA');
+        const esCancelacion = nuevoEstado === 'CANCELADA' || nuevoEstado === 'CANCELADO_INASISTENCIA';
 
-        if (citaObjetivo && citaObjetivo.fecha_inicio !== hoyLocal) {
+        if (citaObjetivo && citaObjetivo.fecha_inicio !== hoyLocal && !esCancelacion) {
             showToast('Solo puedes cambiar el estado de las citas programadas para el día de hoy.', 'error');
             return;
         }
 
+        if (esCancelacion && citaObjetivo) {
+            setCitaACancelar({
+                id: citaId,
+                nuevoEstado,
+                clienteNombre: citaObjetivo.cliente_nombre || 'la clienta',
+                cita: citaObjetivo,
+            });
+            return;
+        }
+
+        await procesarCambioEstado(citaId, nuevoEstado, citaObjetivo);
+    };
+
+    const procesarCambioEstado = async (citaId: string, nuevoEstado: string, citaObjetivo?: Cita) => {
+        const esCancelacion = nuevoEstado === 'CANCELADA' || nuevoEstado === 'CANCELADO_INASISTENCIA';
         setUpdatingId(citaId);
         try {
             const { error } = await supabase
@@ -302,25 +321,26 @@ export default function GestionCitas() {
                 return;
             }
 
-            if (nuevoEstado === 'CANCELADO_INASISTENCIA' && citaObjetivo?.cliente_numero) {
+            if (esCancelacion && citaObjetivo?.cliente_numero) {
                 enviarNotificacionPlantilla('cancelacion', {
                     nombre_cliente: citaObjetivo.cliente_nombre || 'Cliente',
                     telefono_cliente: citaObjetivo.cliente_numero,
                     servicio: citaObjetivo.servicios?.nombre || 'Servicio',
                     fecha_cita: citaObjetivo.fecha_inicio,
-                    hora_cita: citaObjetivo.hora_inicio,
+                    hora_cita: citaObjetivo.hora_inicio?.slice(0, 5),
                 });
             }
 
             setCitas((prev) =>
                 prev.map((c) => (c.id === citaId ? { ...c, estado: nuevoEstado } : c))
             );
-            showToast('Estado de cita actualizado.', 'success');
+            showToast(esCancelacion ? 'Cita cancelada y clienta notificada por WhatsApp.' : 'Estado de cita actualizado.', 'success');
         } catch (error) {
             console.error('Error al actualizar estado:', error);
             showToast('Error al actualizar estado', 'error');
         } finally {
             setUpdatingId(null);
+            setCitaACancelar(null);
         }
     };
 
@@ -542,8 +562,9 @@ export default function GestionCitas() {
                                                             <UserCheck className="w-3.5 h-3.5" /> Llegó
                                                         </button>
                                                         <button
-                                                            onClick={() => handleCambiarEstado(cita.id, 'CANCELADO_INASISTENCIA')}
+                                                            onClick={() => handleCambiarEstado(cita.id, 'CANCELADA')}
                                                             className="inline-flex items-center gap-1 rounded-lg bg-rose-500/10 px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-500/20 border border-rose-500/20 transition-all dark:text-rose-400"
+                                                            title="Cancelar cita y notificar por WhatsApp"
                                                         >
                                                             <XCircle className="w-3.5 h-3.5" />
                                                         </button>
@@ -560,7 +581,7 @@ export default function GestionCitas() {
                                                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                                                         : 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
                                                         }`}>
-                                                        {cita.estado === 'COMPLETADA' ? 'Completada' : 'Inasistencia'}
+                                                        {cita.estado === 'COMPLETADA' ? 'Completada' : cita.estado === 'CANCELADA' ? 'Cancelada' : 'Inasistencia'}
                                                     </span>
                                                 )}
                                             </div>
@@ -598,9 +619,9 @@ export default function GestionCitas() {
             </div>
 
             {/* Modal Agendar Cita Manualmente (Profesional) */}
-            {modalAgendarOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            {modalAgendarOpen && createPortal(
+                <div className="fixed inset-0 z-[9999] min-h-screen w-screen flex items-start justify-center p-4 pt-10 md:pt-16 overflow-y-auto bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 my-auto sm:my-0">
                         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                             <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                 <Plus className="text-brand-primary" size={20} /> Agendar Cita Manualmente
@@ -754,8 +775,26 @@ export default function GestionCitas() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
+
+            {/* Modal de Confirmación para Cancelar Cita */}
+            <ConfirmModal
+                isOpen={Boolean(citaACancelar)}
+                onClose={() => setCitaACancelar(null)}
+                onConfirm={() => {
+                    if (citaACancelar) {
+                        procesarCambioEstado(citaACancelar.id, citaACancelar.nuevoEstado, citaACancelar.cita);
+                    }
+                }}
+                title="Confirmar Cancelación de Cita"
+                message={`¿Deseas cancelar la cita de "${citaACancelar?.clienteNombre}"? Se actualizará el estado en la base de datos y se le enviará un mensaje automático de cancelación vía WhatsApp.`}
+                confirmText="Sí, Cancelar Cita"
+                cancelText="Mantener Cita"
+                variant="warning"
+                loading={Boolean(updatingId)}
+            />
         </div>
     );
 }

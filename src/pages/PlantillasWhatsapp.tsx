@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   MessageSquareText,
   Save,
@@ -479,9 +480,9 @@ export default function PlantillasWhatsapp() {
       </div>
 
       {/* Modal Prueba de Envío */}
-      {modalTestOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+      {modalTestOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] min-h-screen w-screen bg-slate-950/80 backdrop-blur-md flex items-start justify-center p-4 pt-10 md:pt-16 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 my-auto sm:my-0">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Send size={16} className="text-emerald-600" />
@@ -528,7 +529,8 @@ export default function PlantillasWhatsapp() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

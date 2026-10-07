@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -30,7 +31,7 @@ export default function Calendario() {
     const anoEnCurso = hoy.getFullYear();
 
     const esMesActualOAnterior = fechaActual.getFullYear() < anoEnCurso || (fechaActual.getFullYear() === anoEnCurso && fechaActual.getMonth() <= hoy.getMonth());
-    const esUltimoMesDelAno = fechaActual.getFullYear() >= anoEnCurso && fechaActual.getMonth() === 11;
+    const esUltimoMesDelAno = fechaActual.getFullYear() > anoEnCurso + 1 || (fechaActual.getFullYear() === anoEnCurso + 1 && fechaActual.getMonth() === 11);
 
     useEffect(() => {
         if (!user) return;
@@ -67,7 +68,7 @@ export default function Calendario() {
 
     const generarHorarioAtencionMes = async () => {
         if (!user?.id) return;
-        if (fechaActual.getFullYear() > anoEnCurso) { showToast('Solo hasta diciembre del año en curso.', 'warning'); return; }
+        if (fechaActual.getFullYear() > anoEnCurso + 1) { showToast('Puedes habilitar horarios hasta diciembre del próximo año.', 'warning'); return; }
         setLoading(true);
         try {
             const ano = fechaActual.getFullYear();
@@ -95,7 +96,7 @@ export default function Calendario() {
     const cambiarMes = (delta: number) => {
         const nuevaFecha = new Date(fechaActual.getFullYear(), fechaActual.getMonth() + delta, 1);
         const primerDiaMesActual = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-        if (nuevaFecha < primerDiaMesActual || nuevaFecha.getFullYear() > anoEnCurso) return;
+        if (nuevaFecha < primerDiaMesActual || nuevaFecha.getFullYear() > anoEnCurso + 1) return;
         setFechaActual(nuevaFecha);
     };
 
@@ -317,9 +318,9 @@ export default function Calendario() {
                 ))}
             </div>
 
-            {diaSeleccionado && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md shadow-2xl">
+            {diaSeleccionado && createPortal(
+                <div className="fixed inset-0 z-[9999] min-h-screen w-screen bg-slate-950/80 backdrop-blur-md flex items-start justify-center p-4 pt-10 md:pt-16 overflow-y-auto animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md shadow-2xl my-auto sm:my-0">
                         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800/60">
                             <div className="flex items-center gap-2">
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${primaryColor}15` }}><Lock size={14} style={{ color: primaryColor }} /></div>
@@ -348,7 +349,8 @@ export default function Calendario() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
